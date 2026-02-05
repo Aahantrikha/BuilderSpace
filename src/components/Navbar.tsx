@@ -8,13 +8,16 @@ import { useScrollPosition } from '@/hooks/useScrollPosition';
 
 export function Navbar() {
   const { isAuthenticated, logout } = useAuth();
-  const { isScrolled } = useScrollPosition();
+  const { isScrolled, scrollDirection, scrollPosition } = useScrollPosition();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   const isLandingPage = location.pathname === '/';
   const isAuthPage = location.pathname === '/auth';
+
+  // Show navbar if: not scrolled, scrolling up, or not on landing page
+  const showNavbar = !isLandingPage || scrollPosition < 100 || scrollDirection === 'up';
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -45,8 +48,11 @@ export function Navbar() {
     <>
       <motion.header
         initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        animate={{ 
+          y: showNavbar ? 0 : -100, 
+          opacity: showNavbar ? 1 : 0 
+        }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled || !isLandingPage
             ? 'bg-black/80 backdrop-blur-xl border-b border-border'
