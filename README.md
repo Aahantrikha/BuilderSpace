@@ -1,233 +1,193 @@
-# BuilderSpace 🚀
+# BuilderSpace
 
-A modern platform connecting startup founders with talented builders and facilitating hackathon collaborations.
+A platform for student builders to find co-founders, recruit hackathon teams, and collaborate on projects.
 
-## 🌟 Features
+## 🚀 Features
 
-### For Founders & Organizers
-- **Create Startups**: Post your startup ideas and find co-founders
-- **Organize Hackathons**: Host hackathons and build teams
-- **Manage Applications**: Review and accept/reject applications
-- **Dashboard**: Track your posts and manage received applications
+- **Find Co-Founders**: Browse startups and join as a team member
+- **Recruit Hackathon Teams**: Create posts to recruit teammates for hackathons
+- **Join Hackathon Teams**: Browse and apply to join existing hackathon teams
+- **Team Workspaces**: Auto-created collaboration spaces with chat, links, and tasks
+- **Screening Chats**: Private 1-on-1 chat between founders and applicants
+- **Application System**: Apply to join teams, founders can accept/reject
 
-### For Builders & Participants
-- **Discover Opportunities**: Browse startups and hackathons
-- **Apply to Join**: Submit applications with personalized messages
-- **Track Applications**: Monitor your application status
-- **Profile Management**: Showcase your skills and experience
-
-### Core Functionality
-- **Authentication**: Secure JWT-based auth with Google OAuth support
-- **Real-time Updates**: Dynamic application status updates
-- **Skill Matching**: Filter opportunities by required skills
-- **Responsive Design**: Works seamlessly on desktop and mobile
-
-## 🛠️ Tech Stack
+## 📋 Tech Stack
 
 ### Frontend
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **Framer Motion** for animations
-- **React Router** for navigation
-- **Shadcn/ui** for UI components
+- React 18 + TypeScript
+- Vite (build tool)
+- TailwindCSS + shadcn/ui components
+- React Router for navigation
+- Framer Motion for animations
 
 ### Backend
-- **Node.js** with Express
-- **TypeScript** for type safety
-- **PostgreSQL** database
-- **Drizzle ORM** for database operations
-- **JWT** for authentication
-- **Google OAuth** integration
-- **Helmet** for security
-- **CORS** for cross-origin requests
+- Node.js + Express
+- TypeScript
+- SQLite database (via Drizzle ORM)
+- JWT authentication
+- WebSocket server (Socket.io)
+- Bcrypt for password hashing
 
-## 🚀 Getting Started
+### Testing
+- Vitest (unit tests)
+- fast-check (property-based testing)
+- 478+ tests passing
+
+## 🛠️ Setup
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- PostgreSQL (v14 or higher)
+- Node.js 18+ 
 - npm or yarn
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd builderspace
+   git clone https://github.com/Aahantrikha/BuilderSpace.git
+   cd BuilderSpace/app
    ```
 
 2. **Install dependencies**
    ```bash
    # Install frontend dependencies
    npm install
-   
+
    # Install backend dependencies
    cd server
    npm install
-   cd ..
    ```
 
-3. **Set up the database**
+3. **Setup environment variables**
    ```bash
-   # Create PostgreSQL database
-   createdb builderspace
-   
-   # Run database setup
-   cd server
-   psql -U postgres -d builderspace -f create-tables.sql
-   ```
-
-4. **Configure environment variables**
-   ```bash
-   # Copy environment files
-   cp server/.env.example server/.env
+   # Frontend (.env in app/)
    cp .env.example .env
-   
-   # Edit server/.env with your database credentials
-   # Edit .env with your API URL (if different from default)
+   # Add your environment variables
+
+   # Backend (.env in app/server/)
+   cd server
+   cp .env.example .env
+   # Add your environment variables (JWT_SECRET, GOOGLE_CLIENT_ID, etc.)
    ```
 
-5. **Start the development servers**
+4. **Initialize database**
    ```bash
-   # Start backend server (in server directory)
+   cd server
+   npm run setup-db
+   ```
+
+5. **Start development servers**
+   ```bash
+   # Terminal 1: Start backend (from app/server/)
    cd server
    npm run dev
-   
-   # Start frontend server (in root directory)
-   cd ..
+
+   # Terminal 2: Start frontend (from app/)
    npm run dev
    ```
 
 6. **Access the application**
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:3001
-   - Health check: http://localhost:3001/health
+   - Health Check: http://localhost:3001/health
 
-## 📁 Project Structure
+## 📚 Documentation
+
+- [Quick Start Guide](server/QUICK_START.md) - Get started quickly
+- [API Endpoints](server/API_ENDPOINTS.md) - Complete API documentation
+- [Testing Guide](server/TESTING_GUIDE.md) - How to run and write tests
+- [Implementation Summary](server/IMPLEMENTATION_SUMMARY.md) - Technical details
+- [Setup Guide](SETUP.md) - Detailed setup instructions
+
+## 🏗️ Project Structure
 
 ```
-builderspace/
+app/
 ├── src/                    # Frontend source code
-│   ├── components/         # Reusable UI components
-│   ├── pages/             # Page components
-│   ├── services/          # API service layer
-│   ├── context/           # React context providers
-│   ├── hooks/             # Custom React hooks
-│   ├── lib/               # Utility functions
-│   └── types/             # TypeScript type definitions
-├── server/                # Backend source code
+│   ├── components/        # Reusable UI components
+│   ├── pages/            # Route pages
+│   ├── services/         # API client
+│   ├── context/          # React context (auth)
+│   └── types/            # TypeScript types
+├── server/               # Backend source code
 │   ├── src/
-│   │   ├── routes/        # API route handlers
-│   │   ├── db/            # Database schema and connection
-│   │   ├── middleware/    # Express middleware
-│   │   └── utils/         # Utility functions
-│   ├── create-tables.sql  # Database schema
-│   └── package.json       # Backend dependencies
-├── public/                # Static assets
-└── package.json           # Frontend dependencies
+│   │   ├── routes/      # API routes
+│   │   ├── services/    # Business logic
+│   │   ├── middleware/  # Express middleware
+│   │   ├── db/          # Database schema & setup
+│   │   └── utils/       # Utility functions
+│   └── builderspace.db  # SQLite database (gitignored)
+└── README.md            # This file
 ```
 
-## 🗄️ Database Schema
+## 🧪 Testing
 
-### Core Tables
-- **users**: User profiles and authentication
-- **startups**: Startup posts and details
-- **hackathons**: Hackathon events and information
-- **applications**: User applications to startups/hackathons
-
-### Key Features
-- UUID primary keys for security
-- JSONB fields for flexible skill storage
-- Proper foreign key relationships
-- Indexed columns for performance
-
-## 🔧 API Endpoints
-
-### Authentication
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/google` - Google OAuth
-- `GET /api/auth/me` - Get current user
-- `PUT /api/auth/profile` - Update profile
-
-### Startups
-- `GET /api/startups` - List startups
-- `GET /api/startups/:id` - Get startup details
-- `POST /api/startups` - Create startup
-- `PUT /api/startups/:id` - Update startup
-- `DELETE /api/startups/:id` - Delete startup
-
-### Hackathons
-- `GET /api/hackathons` - List hackathons
-- `GET /api/hackathons/:id` - Get hackathon details
-- `POST /api/hackathons` - Create hackathon
-- `PUT /api/hackathons/:id` - Update hackathon
-- `DELETE /api/hackathons/:id` - Delete hackathon
-
-### Applications
-- `POST /api/applications` - Submit application
-- `GET /api/applications/my` - Get user's applications
-- `GET /api/applications/received` - Get received applications
-- `PUT /api/applications/:id/status` - Update application status
-
-## 🔒 Security Features
-
-- JWT-based authentication
-- Password hashing with bcrypt
-- Rate limiting on API endpoints
-- CORS configuration
-- Helmet security headers
-- Input validation with Zod
-- SQL injection prevention with parameterized queries
-
-## 🎨 UI/UX Features
-
-- Modern dark theme design
-- Responsive layout for all devices
-- Smooth animations with Framer Motion
-- Loading states and error handling
-- Accessible components
-- Intuitive navigation
-
-## 🚀 Deployment
-
-### Environment Variables
-Make sure to set these in production:
-- `DATABASE_URL`: PostgreSQL connection string
-- `JWT_SECRET`: Strong secret for JWT tokens
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `NODE_ENV`: Set to "production"
-
-### Build Commands
 ```bash
-# Build frontend
-npm run build
+# Run all tests
+cd server
+npm test
 
-# Build backend
+# Run tests in watch mode
+npm run test:watch
+
+# Run specific test file
+npm test -- BuilderSpaceService.test.ts
+```
+
+## 🔑 Key Features Explained
+
+### Automatic Workspace Creation
+When you create a startup or hackathon, a workspace is automatically created:
+- Creator is added as the founder
+- Workspace includes group chat, shared links, and task management
+
+### Application Flow
+1. User applies to join a startup/hackathon
+2. Founder reviews application on dashboard
+3. Founder accepts/rejects application
+4. If accepted:
+   - Screening chat is created (1-on-1)
+   - Applicant is added to team workspace
+   - Both can collaborate
+
+### Team Collaboration
+- **Group Chat**: All team members can send messages
+- **Shared Links**: Share important resources
+- **Task Management**: Create and track tasks
+
+## 🚢 Deployment
+
+### Frontend (Vercel/Netlify)
+```bash
+npm run build
+# Deploy the dist/ folder
+```
+
+### Backend (Railway/Render/Heroku)
+```bash
 cd server
 npm run build
+# Deploy with start command: npm start
 ```
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
+
+## 👥 Authors
+
+- Aahan Trikha - [@Aahantrikha](https://github.com/Aahantrikha)
 
 ## 🙏 Acknowledgments
 
-- Built with modern web technologies
-- Inspired by the need for better startup-builder connections
-- Designed for the developer community
-
----
-
-**BuilderSpace** - Where ideas meet talent! 🚀✨
+- Built with [Vite](https://vitejs.dev/)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)
+- Icons from [Lucide](https://lucide.dev/)
+- Testing with [Vitest](https://vitest.dev/) and [fast-check](https://fast-check.dev/)

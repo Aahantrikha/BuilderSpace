@@ -8,6 +8,8 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+*.env
+!.env.example
 
 # Build outputs
 dist/
@@ -21,6 +23,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+pnpm-debug.log*
 
 # Runtime data
 pids
@@ -97,9 +100,30 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Database files
+# Database files (SQLite)
 *.sqlite
+*.sqlite3
 *.db
+server/*.db
+server/*.sqlite
+!server/create-tables.sql
+!server/setup-db.sql
 
 # Kiro specific
 .kiro/specs/builder-space/
+
+# Lock files (keep package-lock.json for consistency)
+# Uncomment if using yarn
+# yarn.lock
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Test coverage
+.coverage/
+
+# Batch files (Windows scripts)
+*.bat
