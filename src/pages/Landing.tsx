@@ -91,15 +91,15 @@ export function Landing() {
         {/* Grid pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_80%)]" />
 
-        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20 pb-8">
           <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
           >
             {/* Badge */}
-            <motion.div variants={fadeInUp} className="mb-6">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white/70">
+            <motion.div variants={fadeInUp} className="mb-4 sm:mb-6">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-xs sm:text-sm text-white/70">
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 BuilderSpace is live
               </span>
@@ -108,7 +108,7 @@ export function Landing() {
             {/* Headline */}
             <motion.h1
               variants={fadeInUp}
-              className="text-5xl sm:text-6xl md:text-7xl font-bold text-white tracking-tight mb-6"
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-4 sm:mb-6 leading-tight"
             >
               Find your team.
               <br />
@@ -118,7 +118,7 @@ export function Landing() {
             {/* Subheadline */}
             <motion.p
               variants={fadeInUp}
-              className="text-lg sm:text-xl text-white/60 max-w-2xl mx-auto mb-10"
+              className="text-base sm:text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-8 sm:mb-10 px-2"
             >
               Connect with student builders, join startups, and participate in hackathons. 
               The platform where ambitious students find their perfect team.
@@ -127,19 +127,19 @@ export function Landing() {
             {/* CTAs */}
             <motion.div
               variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-12 sm:mb-16 px-4"
             >
               <Button
                 onClick={() => navigate('/auth')}
-                className="bg-white text-black hover:bg-white/90 rounded-full px-8 py-6 text-base font-medium"
+                className="bg-white text-black hover:bg-white/90 rounded-full px-6 py-5 sm:px-8 sm:py-6 text-sm sm:text-base font-medium w-full sm:w-auto"
               >
                 Find a Team
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </Button>
               <Button
                 onClick={() => navigate('/auth')}
                 variant="outline"
-                className="border-white/20 text-white hover:bg-white/10 rounded-full px-8 py-6 text-base font-medium"
+                className="border-white/20 text-white hover:bg-white/10 rounded-full px-6 py-5 sm:px-8 sm:py-6 text-sm sm:text-base font-medium w-full sm:w-auto"
               >
                 Create a Team
               </Button>
@@ -148,7 +148,7 @@ export function Landing() {
             {/* Stats */}
             <motion.div
               variants={fadeInUp}
-              className="flex flex-wrap justify-center gap-8 sm:gap-16 mb-20"
+              className="flex flex-wrap justify-center gap-6 sm:gap-8 md:gap-16 mb-16 sm:mb-20 px-4"
             >
               {[
                 { value: '10K+', label: 'Students' },
@@ -156,10 +156,10 @@ export function Landing() {
                 { value: '200+', label: 'Hackathons' },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-1">
                     {stat.value}
                   </div>
-                  <div className="text-sm text-white/50">{stat.label}</div>
+                  <div className="text-xs sm:text-sm text-white/50">{stat.label}</div>
                 </div>
               ))}
             </motion.div>
@@ -185,24 +185,24 @@ export function Landing() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 sm:py-32">
+      <section id="features" className="py-16 sm:py-24 md:py-32 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 sm:mb-4 px-4">
               Everything you need to build
             </h2>
-            <p className="text-lg text-white/60 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto px-4">
               From finding teammates to launching products, we've got you covered.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.title}
@@ -211,13 +211,13 @@ export function Landing() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="group bg-card border border-border rounded-xl p-8 hover:border-border-hover transition-all duration-300"
+                className="group bg-card border border-border rounded-xl p-6 sm:p-8 hover:border-border-hover transition-all duration-300"
               >
-                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-white/15 transition-colors">
-                  <feature.icon className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-white/15 transition-colors">
+                  <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-white/60 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">{feature.title}</h3>
+                <p className="text-sm sm:text-base text-white/60 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -225,35 +225,35 @@ export function Landing() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-24 sm:py-32 border-t border-border">
+      <section id="how-it-works" className="py-16 sm:py-24 md:py-32 lg:py-40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 sm:gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
                 Create, collaborate,
                 <br />
                 and go live
               </h2>
-              <p className="text-lg text-white/60 mb-8">
+              <p className="text-base sm:text-lg text-white/60 mb-6 sm:mb-8">
                 Our platform makes it easy to find the right people and start building together.
               </p>
 
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {[
                   { step: '01', title: 'Create your profile', desc: 'Showcase your skills and what you\'re looking for.' },
                   { step: '02', title: 'Browse opportunities', desc: 'Explore startups and hackathons that match your interests.' },
                   { step: '03', title: 'Connect and build', desc: 'Apply to join teams and start building together.' },
                 ].map((item) => (
-                  <div key={item.step} className="flex gap-4">
-                    <span className="text-sm font-mono text-white/30 pt-1">{item.step}</span>
+                  <div key={item.step} className="flex gap-3 sm:gap-4">
+                    <span className="text-xs sm:text-sm font-mono text-white/30 pt-1">{item.step}</span>
                     <div>
-                      <h4 className="font-semibold text-white mb-1">{item.title}</h4>
-                      <p className="text-sm text-white/50">{item.desc}</p>
+                      <h4 className="font-semibold text-white mb-1 text-sm sm:text-base">{item.title}</h4>
+                      <p className="text-xs sm:text-sm text-white/50">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -300,24 +300,24 @@ export function Landing() {
       </section>
 
       {/* Testimonials */}
-      <section id="testimonials" className="py-24 sm:py-32 border-t border-border">
+      <section id="testimonials" className="py-16 sm:py-24 md:py-32 lg:py-40 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-3 sm:mb-4 px-4">
               Loved by builders worldwide
             </h2>
-            <p className="text-lg text-white/60">
+            <p className="text-base sm:text-lg text-white/60 px-4">
               Hear from students who found their team on BuilderSpace.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {testimonials.map((testimonial, index) => (
               <motion.div
                 key={testimonial.author}
@@ -325,18 +325,18 @@ export function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-card border border-border rounded-xl p-6"
+                className="bg-card border border-border rounded-xl p-5 sm:p-6"
               >
-                <p className="text-white/80 mb-6 leading-relaxed">"{testimonial.quote}"</p>
+                <p className="text-sm sm:text-base text-white/80 mb-4 sm:mb-6 leading-relaxed">"{testimonial.quote}"</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-semibold text-white">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs sm:text-sm font-semibold text-white">
                       {testimonial.author.split(' ').map(n => n[0]).join('')}
                     </span>
                   </div>
                   <div>
-                    <div className="font-medium text-white">{testimonial.author}</div>
-                    <div className="text-sm text-white/50">{testimonial.role}</div>
+                    <div className="font-medium text-white text-sm sm:text-base">{testimonial.author}</div>
+                    <div className="text-xs sm:text-sm text-white/50">{testimonial.role}</div>
                   </div>
                 </div>
               </motion.div>
@@ -346,7 +346,7 @@ export function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 sm:py-32 border-t border-border">
+      <section className="py-16 sm:py-24 md:py-32 lg:py-40 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -354,19 +354,19 @@ export function Landing() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6 px-4">
               Ready to start building?
             </h2>
-            <p className="text-lg text-white/60 mb-10 max-w-xl mx-auto">
+            <p className="text-base sm:text-lg text-white/60 mb-8 sm:mb-10 max-w-xl mx-auto px-4">
               Join thousands of students who are already building the future together.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
               <Button
                 onClick={() => navigate('/auth')}
-                className="bg-white text-black hover:bg-white/90 rounded-full px-8 py-6 text-base font-medium"
+                className="bg-white text-black hover:bg-white/90 rounded-full px-6 py-5 sm:px-8 sm:py-6 text-sm sm:text-base font-medium w-full sm:w-auto"
               >
                 Get Started for Free
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </Button>
             </div>
           </motion.div>
