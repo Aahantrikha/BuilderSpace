@@ -25,8 +25,8 @@ export function Navbar() {
     { name: 'Product', href: '#features' },
     { name: 'Teams', href: '#how-it-works' },
     { name: 'Resources', href: '#resources' },
-    { name: 'Community', href: '#testimonials' },
-    { name: 'Support', href: '#footer' },
+    { name: 'Community', href: '/auth' },
+    { name: 'Support', href: 'mailto:support@builderspace.com' },
   ];
 
   const privateNavLinks = [
@@ -67,15 +67,28 @@ export function Navbar() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
-                >
-                  {link.name}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                if (link.href.startsWith('mailto:')) {
+                  return (
+                    <a
+                      key={link.name}
+                      href={link.href}
+                      className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+                    >
+                      {link.name}
+                    </a>
+                  );
+                }
+                return (
+                  <Link
+                    key={link.name}
+                    to={link.href}
+                    className="px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+                  >
+                    {link.name}
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* Right Side Actions */}
@@ -155,12 +168,21 @@ export function Navbar() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <Link
-                      to={link.href}
-                      className="flex items-center gap-3 px-4 py-4 text-lg text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-                    >
-                      {link.name}
-                    </Link>
+                    {link.href.startsWith('mailto:') ? (
+                      <a
+                        href={link.href}
+                        className="flex items-center gap-3 px-4 py-4 text-lg text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                      >
+                        {link.name}
+                      </a>
+                    ) : (
+                      <Link
+                        to={link.href}
+                        className="flex items-center gap-3 px-4 py-4 text-lg text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                      >
+                        {link.name}
+                      </Link>
+                    )}
                   </motion.div>
                 ))}
               </nav>

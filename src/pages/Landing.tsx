@@ -4,6 +4,7 @@ import { Rocket, Users, Zap, Target, ChevronDown, ArrowRight } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { AnimatedCodeBackground } from '@/components/AnimatedCodeBackground';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -66,7 +67,12 @@ export function Landing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black relative">
+      {/* Animated code background for entire page */}
+      <div className="fixed inset-0 pointer-events-none">
+        <AnimatedCodeBackground />
+      </div>
+      
       <Navbar />
 
       {/* Hero Section */}
@@ -132,7 +138,7 @@ export function Landing() {
             {/* Stats */}
             <motion.div
               variants={fadeInUp}
-              className="flex flex-wrap justify-center gap-8 sm:gap-16"
+              className="flex flex-wrap justify-center gap-8 sm:gap-16 mb-20"
             >
               {[
                 { value: '10K+', label: 'Students' },
