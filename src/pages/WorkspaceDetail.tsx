@@ -12,7 +12,7 @@ export function WorkspaceDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [workspace, setWorkspace] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'chat' | 'links' | 'tasks'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'links' | 'tasks' | 'members'>('chat');
   const [loading, setLoading] = useState(true);
   
   // Chat state
@@ -30,6 +30,15 @@ export function WorkspaceDetail() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
 
+  // Invite state
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+
+  // Members state
+  const [members, setMembers] = useState<any[]>([]);
+  const [isFounder, setIsFounder] = useState(false);
+
   useEffect(() => {
     if (workspaceId) {
       loadWorkspaceData();
@@ -39,18 +48,23 @@ export function WorkspaceDetail() {
   const loadWorkspaceData = async () => {
     try {
       setLoading(true);
-      const [workspaceRes, messagesRes, linksRes, tasksRes] = await Promise.all([
+      const [workspaceRes, messagesRes, linksRes, tasksRes, membersRes] = await Promise.all([
         apiService.getWorkspace(workspaceId!),
         apiService.getWorkspaceMessages(workspaceId!),
         apiService.getWorkspaceLinks(workspaceId!),
         apiService.getWorkspaceTasks(workspaceId!),
+        apiService.getWorkspaceMembers(workspaceId!),
       ]);
-      setWorkspace(workspaceRes.workspace);
+      setWorkspace(workspaceRes.space);
       setMessages(messagesRes.messages || []);
       setLinks(linksRes.links || []);
       setTasks(tasksRes.tasks || []);
-    } catch (error) {
+      setMembers(membersRes.members || []);
+      setIsFounder(membersRes.isFounder || false);
+    } catch (error: any) {
       console.error('Failed to load workspace:', error);
+      console.error('Error message:', error.message);
+      setWorkspace(null);
     } finally {
       setLoading(false);
     }
@@ -63,7 +77,7 @@ export function WorkspaceDetail() {
     try {
       setSending(true);
       const response = await apiService.sendWorkspaceMessage(workspaceId!, newMessage.trim());
-      setMessages([...messages, response.message]);
+      setMessages([...messages, response.data]);
       setNewMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -102,10 +116,45 @@ export function WorkspaceDetail() {
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
-      await apiService.updateWorkspaceTask(workspaceId!, taskId, { completed: !completed });
-      setTasks(tasks.map(t => t.id === taskId ? { ...t, completed: !completed } : t));
+      const response = await apiService.updateWorkspaceTask(workspaceId!, taskId, { completed: !completed });
+      // Update the task in the list with the response data
+      setTasks(tasks.map(t => t.id === taskId ? response.task : t));
     } catch (error) {
       console.error('Failed to update task:', error);
+    }
+  };
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || inviting) return;
+
+    try {
+      setInviting(true);
+      await apiService.inviteToWorkspace(workspaceId!, inviteEmail.trim());
+      setInviteEmail('');
+      setShowInvite(false);
+      // Reload members
+      const membersRes = await apiService.getWorkspaceMembers(workspaceId!);
+      setMembers(membersRes.members || []);
+      alert('User invited successfully!');
+    } catch (error: any) {
+      console.error('Failed to invite user:', error);
+      alert(error.message || 'Failed to invite user');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleKickMember = async (memberId: string) => {
+    if (!confirm('Are you sure you want to remove this member?')) return;
+
+    try {
+      await apiService.removeMemberFromWorkspace(workspaceId!, memberId);
+      setMembers(members.filter(m => m.userId !== memberId));
+      alert('Member removed successfully');
+    } catch (error: any) {
+      console.error('Failed to remove member:', error);
+      alert(error.message || 'Failed to remove member');
     }
   };
 
@@ -165,7 +214,7 @@ export function WorkspaceDetail() {
                 </div>
               </div>
               <Button
-                onClick={() => navigate(`/workspaces/${workspaceId}/invite`)}
+                onClick={() => setShowInvite(true)}
                 className="bg-white text-black hover:bg-white/90 rounded-full"
               >
                 <UserPlus className="w-4 h-4 mr-2" />
@@ -208,6 +257,17 @@ export function WorkspaceDetail() {
             >
               <CheckSquare className="w-4 h-4" />
               Tasks
+            </button>
+            <button
+              onClick={() => setActiveTab('members')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'members'
+                  ? 'bg-white text-black'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Members ({members.length})
             </button>
           </div>
 
@@ -326,11 +386,56 @@ export function WorkspaceDetail() {
                           {task.description && (
                             <p className="text-sm text-white/50 mt-1">{task.description}</p>
                           )}
+                          {task.completed && task.completedByName && (
+                            <p className="text-xs text-white/40 mt-2">
+                              ✓ Completed by {task.completedByName}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
                   </>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'members' && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-white">Team Members ({members.length})</h3>
+                </div>
+                {members.map((member) => (
+                  <div key={member.userId} className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                        <span className="text-white font-medium">
+                          {member.userName?.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-white">{member.userName || 'Unknown'}</h4>
+                        <p className="text-sm text-white/50">{member.userEmail}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {member.role === 'founder' && (
+                        <span className="px-3 py-1 bg-white/10 text-white/70 text-xs rounded-full">
+                          Founder
+                        </span>
+                      )}
+                      {isFounder && member.role !== 'founder' && (
+                        <Button
+                          onClick={() => handleKickMember(member.userId)}
+                          size="sm"
+                          variant="outline"
+                          className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -458,6 +563,57 @@ export function WorkspaceDetail() {
                 </Button>
                 <Button type="submit" className="flex-1 bg-white text-black hover:bg-white/90">
                   Add Task
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card border border-border rounded-xl p-6 w-full max-w-md"
+          >
+            <h2 className="text-xl font-semibold text-white mb-2">Invite to Workspace</h2>
+            <p className="text-sm text-white/60 mb-4">
+              Enter the email address of the person you want to invite. They must have an account.
+            </p>
+            <form onSubmit={handleInvite} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Email *</label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  required
+                  disabled={inviting}
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowInvite(false);
+                    setInviteEmail('');
+                  }}
+                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                  disabled={inviting}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1 bg-white text-black hover:bg-white/90"
+                  disabled={inviting || !inviteEmail.trim()}
+                >
+                  {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Invite'}
                 </Button>
               </div>
             </form>

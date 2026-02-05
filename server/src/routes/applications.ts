@@ -319,7 +319,7 @@ router.put('/:id/status', authenticateToken, async (req: AuthRequest, res) => {
       .where(eq(applications.id, id))
       .returning();
 
-    // If application is accepted, create screening chat and add to workspace
+    // If application is accepted, create screening chat (but don't add to workspace yet)
     let screeningChat = null;
     if (status === 'accepted') {
       try {
@@ -327,19 +327,8 @@ router.put('/:id/status', authenticateToken, async (req: AuthRequest, res) => {
         const { screeningChatService } = await import('../services/ScreeningChatService.js');
         screeningChat = await screeningChatService.createScreeningChat(id);
         console.log('Screening chat created:', screeningChat);
-
-        // Add applicant to team workspace
-        await db
-          .insert(teamMembers)
-          .values({
-            id: crypto.randomUUID(),
-            userId: application[0].applicantId,
-            postType: application[0].postType,
-            postId: application[0].postId,
-            role: 'member',
-            joinedAt: new Date(),
-          });
-        console.log('Applicant added to team workspace');
+        
+        // Note: User will be added to workspace only when manually invited
       } catch (error: any) {
         console.error('Error in post-acceptance actions:', error);
         // Don't fail the request if these actions fail

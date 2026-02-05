@@ -301,6 +301,21 @@ export class TaskService {
       userId // Exclude updater from broadcast
     );
 
+    // If task was just completed, send a chat message notification
+    if (completed && !task[0].completed) {
+      const { groupChatService } = await import('./GroupChatService.js');
+      try {
+        await groupChatService.sendGroupMessage({
+          spaceId: task[0].spaceId,
+          senderId: userId,
+          content: `✅ Completed task: "${task[0].title}"`,
+        });
+      } catch (error) {
+        console.error('Failed to send task completion message:', error);
+        // Don't fail the task update if chat message fails
+      }
+    }
+
     return updatedTask;
   }
 

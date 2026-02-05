@@ -282,6 +282,23 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  async inviteToWorkspace(workspaceId: string, email: string) {
+    return this.request<{ message: string; user: any }>(`/builder-spaces/${workspaceId}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string) {
+    return this.request<{ members: any[]; isFounder: boolean }>(`/builder-spaces/${workspaceId}/members`);
+  }
+
+  async removeMemberFromWorkspace(workspaceId: string, memberId: string) {
+    return this.request<{ message: string }>(`/builder-spaces/${workspaceId}/members/${memberId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiService = new ApiService();
