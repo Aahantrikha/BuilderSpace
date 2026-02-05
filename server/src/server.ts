@@ -4,12 +4,20 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 
 // Import routes
 import authRoutes from './routes/auth.js';
 import startupRoutes from './routes/startups.js';
 import hackathonRoutes from './routes/hackathons.js';
 import applicationRoutes from './routes/applications.js';
+import screeningChatRoutes from './routes/screeningChats.js';
+import builderSpaceRoutes from './routes/builderSpaces.js';
+import teamRoutes from './routes/teams.js';
+
+// Import services
+import { messageBroadcastService } from './services/MessageBroadcastService.js';
 
 // Load environment variables
 dotenv.config({ path: '.env' });
@@ -22,18 +30,18 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Rate limiting
+// Rate limiting (relaxed for development)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // limit each IP to 1000 requests per windowMs (increased for dev)
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use(limiter);
 
-// Auth rate limiting (stricter)
+// Auth rate limiting (relaxed for development)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 auth requests per windowMs
+  max: 100, // limit each IP to 100 auth requests per windowMs (increased for dev)
   message: 'Too many authentication attempts, please try again later.',
 });
 
@@ -64,6 +72,9 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/startups', startupRoutes);
 app.use('/api/hackathons', hackathonRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/screening-chats', screeningChatRoutes);
+app.use('/api/builder-spaces', builderSpaceRoutes);
+app.use('/api/teams', teamRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -83,12 +94,46 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Create WebSocket server
+const wss = new WebSocketServer({ server: httpServer });
+
+// Initialize WebSocket connections
+wss.on('connection', (ws, req) => {
+  console.log('WebSocket client connected');
+
+  // Extract user ID from query params or headers
+  const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const userId = url.searchParams.get('userId');
+
+  if (userId) {
+    messageBroadcastService.addConnection(userId, ws);
+    console.log(`User ${userId} connected to WebSocket`);
+
+    ws.on('close', () => {
+      messageBroadcastService.removeConnection(userId);
+      console.log(`User ${userId} disconnected from WebSocket`);
+    });
+
+    ws.on('error', (error) => {
+      console.error(`WebSocket error for user ${userId}:`, error);
+      messageBroadcastService.removeConnection(userId);
+    });
+  } else {
+    console.warn('WebSocket connection without userId, closing');
+    ws.close();
+  }
+});
+
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 BuilderSpace API server running on port ${PORT}`);
   console.log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔌 WebSocket server ready`);
 });
 
 export default app;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, MapPin, GraduationCap, Edit, Rocket, Trophy, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,50 @@ import { SkillBadge } from '@/components/SkillBadge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
-import { mockStartups, mockHackathons, mockApplications } from '@/data/mockData';
+import { apiService } from '@/services/api';
+import type { Startup, Hackathon, Application } from '@/types';
 
 export function Profile() {
   const { user, logout } = useAuth();
-  // Tab state is managed by Tabs component
-  useState('startups'); // default value
+  const [myStartups, setMyStartups] = useState<Startup[]>([]);
+  const [myHackathons, setMyHackathons] = useState<Hackathon[]>([]);
+  const [myApplications, setMyApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadProfileData();
+    }
+  }, [user?.id]);
+
+  const loadProfileData = async () => {
+    try {
+      setLoading(true);
+      
+      const [startupsRes, hackathonsRes, applicationsRes] = await Promise.all([
+        apiService.getMyStartups().catch(err => {
+          console.warn('Failed to load user startups:', err);
+          return { startups: [] };
+        }),
+        apiService.getMyHackathons().catch(err => {
+          console.warn('Failed to load user hackathons:', err);
+          return { hackathons: [] };
+        }),
+        apiService.getMyApplications().catch(err => {
+          console.warn('Failed to load user applications:', err);
+          return { applications: [] };
+        }),
+      ]);
+      
+      setMyStartups(startupsRes.startups);
+      setMyHackathons(hackathonsRes.hackathons);
+      setMyApplications(applicationsRes.applications);
+    } catch (error: any) {
+      console.error('Failed to load profile data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -27,10 +65,20 @@ export function Profile() {
     );
   }
 
-  // Filter user's startups, hackathons, and applications
-  const myStartups = mockStartups.filter((s) => s.founder_id === user.user_id);
-  const myHackathons = mockHackathons.filter((h) => h.creator_id === user.user_id);
-  const myApps = mockApplications.filter((a) => a.applicant_id === user.user_id);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <main className="pt-24 pb-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black">
@@ -132,12 +180,12 @@ export function Profile() {
                   <div className="space-y-4">
                     {myStartups.map((startup) => (
                       <div
-                        key={startup.startup_id}
+                        key={startup.id}
                         className="bg-card border border-border rounded-xl p-6"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="font-semibold text-white text-lg">
-                            {startup.startup_name}
+                            {startup.name}
                           </h3>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -153,7 +201,7 @@ export function Profile() {
                         </div>
                         <p className="text-white/60 mb-4">{startup.description}</p>
                         <div className="flex flex-wrap gap-2">
-                          {startup.skills_needed.map((skill) => (
+                          {startup.skillsNeeded.map((skill) => (
                             <SkillBadge key={skill} skill={skill} variant="small" />
                           ))}
                         </div>
@@ -186,21 +234,21 @@ export function Profile() {
                   <div className="space-y-4">
                     {myHackathons.map((hackathon) => (
                       <div
-                        key={hackathon.hackathon_id}
+                        key={hackathon.id}
                         className="bg-card border border-border rounded-xl p-6"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="font-semibold text-white text-lg">
-                            {hackathon.hackathon_name}
+                            {hackathon.name}
                           </h3>
                           <span className="text-sm text-white/50">
-                            Team of {hackathon.team_size}
+                            Team of {hackathon.teamSize}
                           </span>
                         </div>
                         <p className="text-white/60 mb-4">{hackathon.description}</p>
                         <div className="flex items-center justify-between">
                           <div className="flex flex-wrap gap-2">
-                            {hackathon.skills_needed.map((skill) => (
+                            {hackathon.skillsNeeded.map((skill) => (
                               <SkillBadge key={skill} skill={skill} variant="small" />
                             ))}
                           </div>
@@ -233,20 +281,20 @@ export function Profile() {
               </TabsContent>
 
               <TabsContent value="applications" className="mt-0">
-                {myApps.length > 0 ? (
+                {myApplications.length > 0 ? (
                   <div className="space-y-4">
-                    {myApps.map((application) => (
+                    {myApplications.map((application) => (
                       <div
-                        key={application.application_id}
+                        key={application.id}
                         className="bg-card border border-border rounded-xl p-6"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <h3 className="font-semibold text-white text-lg">
-                              {application.post_name}
+                              {application.post?.name || 'Unknown Post'}
                             </h3>
                             <p className="text-sm text-white/50 capitalize">
-                              {application.post_type}
+                              {application.postType}
                             </p>
                           </div>
                           <span
@@ -264,7 +312,7 @@ export function Profile() {
                         </div>
                         <p className="text-white/60 text-sm">{application.message}</p>
                         <p className="text-xs text-white/40 mt-4">
-                          Applied on {new Date(application.created_at).toLocaleDateString()}
+                          Applied on {new Date(application.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                     ))}

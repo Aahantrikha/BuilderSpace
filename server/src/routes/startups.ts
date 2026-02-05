@@ -1,10 +1,35 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, startups, users, applications, insertStartupSchema } from '../db/index.js';
+import { db, startups, users, applications, insertStartupSchema, teamSpaces, teamMembers } from '../db/index.js';
 import { eq, desc, ilike, or, and } from 'drizzle-orm';
 import { authenticateToken, AuthRequest, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// Get user's own startups
+router.get('/my', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userStartups = await db
+      .select({
+        id: startups.id,
+        name: startups.name,
+        description: startups.description,
+        stage: startups.stage,
+        skillsNeeded: startups.skillsNeeded,
+        founderId: startups.founderId,
+        createdAt: startups.createdAt,
+        updatedAt: startups.updatedAt,
+      })
+      .from(startups)
+      .where(eq(startups.founderId, req.user!.id))
+      .orderBy(desc(startups.createdAt));
+    
+    res.json({ startups: userStartups });
+  } catch (error) {
+    console.error('Get user startups error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get all startups with optional filtering
 router.get('/', optionalAuth, async (req: AuthRequest, res) => {
@@ -91,27 +116,43 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Startup not found' });
     }
 
-    // Check if current user has applied
+    // Check if current user has applied or is the founder
     let hasApplied = false;
+    let isFounder = false;
     if (req.user) {
-      const application = await db
+      // Check if user is the founder
+      const startupRecord = await db
         .select()
-        .from(applications)
-        .where(
-          and(
-            eq(applications.applicantId, req.user.id),
-            eq(applications.postId, id),
-            eq(applications.postType, 'startup')
-          )
-        )
+        .from(startups)
+        .where(eq(startups.id, id))
         .limit(1);
+      
+      if (startupRecord.length > 0) {
+        isFounder = startupRecord[0].founderId === req.user.id;
+      }
 
-      hasApplied = application.length > 0;
+      // Only check for applications if user is not the founder
+      if (!isFounder) {
+        const application = await db
+          .select()
+          .from(applications)
+          .where(
+            and(
+              eq(applications.applicantId, req.user.id),
+              eq(applications.postId, id),
+              eq(applications.postType, 'startup')
+            )
+          )
+          .limit(1);
+
+        hasApplied = application.length > 0;
+      }
     }
 
     res.json({ 
       startup: startup[0],
-      hasApplied 
+      hasApplied,
+      isFounder
     });
   } catch (error: any) {
     console.error('Get startup error:', error?.message || error);
@@ -139,12 +180,38 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         createdAt: startups.createdAt,
       });
 
+    // Auto-create Builder Space (workspace) for this startup
+    const workspace = await db
+      .insert(teamSpaces)
+      .values({
+        id: crypto.randomUUID(),
+        postType: 'startup',
+        postId: newStartup[0].id,
+        name: `${newStartup[0].name} Workspace`,
+        description: `Collaboration workspace for ${newStartup[0].name}`,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    // Add founder as first team member
+    await db
+      .insert(teamMembers)
+      .values({
+        id: crypto.randomUUID(),
+        userId: req.user!.id,
+        postType: 'startup',
+        postId: newStartup[0].id,
+        role: 'founder',
+        joinedAt: new Date(),
+      });
+
     res.status(201).json({
       message: 'Startup created successfully',
       startup: newStartup[0],
+      workspace: workspace[0],
     });
   } catch (error) {
-    console.error('Create startup error:', error?.message || error);
+    console.error('Create startup error:', (error as any)?.message || error);
     if (error instanceof z.ZodError) {
       console.error('Validation errors:', error.errors);
       return res.status(400).json({ error: error.errors[0].message });

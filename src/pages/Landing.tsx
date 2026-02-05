@@ -125,7 +125,7 @@ export function Landing() {
                 variant="outline"
                 className="border-white/20 text-white hover:bg-white/10 rounded-full px-8 py-6 text-base font-medium"
               >
-                Post a Startup
+                Create a Team
               </Button>
             </motion.div>
 

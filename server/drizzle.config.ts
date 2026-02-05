@@ -6,9 +6,9 @@ dotenv.config();
 export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
-  driver: 'pg',
+  dialect: 'sqlite',
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL!,
+    url: process.env.DATABASE_URL!,
   },
   verbose: true,
   strict: true,

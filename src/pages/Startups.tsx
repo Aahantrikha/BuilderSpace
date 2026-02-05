@@ -139,14 +139,21 @@ export function Startups() {
                   <StartupCard
                     key={startup.id}
                     startup={{
-                      startup_id: startup.id,
-                      startup_name: startup.name,
+                      id: startup.id,
+                      founderId: startup.founderId,
+                      name: startup.name,
                       description: startup.description,
                       stage: startup.stage,
-                      skills_needed: startup.skillsNeeded || [],
-                      founder_name: startup.founder?.name || 'Unknown',
-                      founder_avatar: startup.founder?.avatar,
-                      created_at: new Date(startup.createdAt),
+                      skillsNeeded: startup.skillsNeeded || [],
+                      createdAt: new Date(startup.createdAt),
+                      founder: startup.founder ? {
+                        id: startup.founder.id,
+                        name: startup.founder.name,
+                        avatar: startup.founder.avatar,
+                        college: startup.founder.college,
+                        city: startup.founder.city,
+                        bio: startup.founder.bio,
+                      } : undefined,
                     }}
                     index={index}
                   />

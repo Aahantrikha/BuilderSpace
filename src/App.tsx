@@ -10,6 +10,10 @@ import { Hackathons } from '@/pages/Hackathons';
 import { HackathonDetail } from '@/pages/HackathonDetail';
 import { CreatePost } from '@/pages/CreatePost';
 import { Profile } from '@/pages/Profile';
+import { ScreeningChat } from '@/pages/ScreeningChat';
+import { Messages } from '@/pages/Messages';
+import { Workspaces } from '@/pages/Workspaces';
+import { WorkspaceDetail } from '@/pages/WorkspaceDetail';
 
 // Protected route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -132,6 +136,38 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Messages />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/workspaces"
+        element={
+          <ProtectedRoute>
+            <Workspaces />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/workspaces/:workspaceId"
+        element={
+          <ProtectedRoute>
+            <WorkspaceDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/screening-chats/:chatId"
+        element={
+          <ProtectedRoute>
+            <ScreeningChat />
           </ProtectedRoute>
         }
       />

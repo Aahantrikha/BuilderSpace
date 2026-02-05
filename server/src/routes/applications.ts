@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, applications, startups, hackathons, users, insertApplicationSchema } from '../db/index.js';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { db, applications, startups, hackathons, users, teamMembers, insertApplicationSchema } from '../db/index.js';
+import { eq, desc, and, or, inArray } from 'drizzle-orm';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
@@ -181,7 +181,7 @@ router.get('/received', authenticateToken, async (req: AuthRequest, res) => {
       conditions.push(
         and(
           eq(applications.postType, 'startup'),
-          or(...startupIds.map(id => eq(applications.postId, id)))
+          inArray(applications.postId, startupIds)
         )
       );
     }
@@ -189,7 +189,7 @@ router.get('/received', authenticateToken, async (req: AuthRequest, res) => {
       conditions.push(
         and(
           eq(applications.postType, 'hackathon'),
-          or(...hackathonIds.map(id => eq(applications.postId, id)))
+          inArray(applications.postId, hackathonIds)
         )
       );
     }
@@ -319,9 +319,38 @@ router.put('/:id/status', authenticateToken, async (req: AuthRequest, res) => {
       .where(eq(applications.id, id))
       .returning();
 
+    // If application is accepted, create screening chat and add to workspace
+    let screeningChat = null;
+    if (status === 'accepted') {
+      try {
+        // Create screening chat
+        const { screeningChatService } = await import('../services/ScreeningChatService.js');
+        screeningChat = await screeningChatService.createScreeningChat(id);
+        console.log('Screening chat created:', screeningChat);
+
+        // Add applicant to team workspace
+        await db
+          .insert(teamMembers)
+          .values({
+            id: crypto.randomUUID(),
+            userId: application[0].applicantId,
+            postType: application[0].postType,
+            postId: application[0].postId,
+            role: 'member',
+            joinedAt: new Date(),
+          });
+        console.log('Applicant added to team workspace');
+      } catch (error: any) {
+        console.error('Error in post-acceptance actions:', error);
+        // Don't fail the request if these actions fail
+        // The application is still accepted
+      }
+    }
+
     res.json({
       message: `Application ${status} successfully`,
       application: updatedApplication[0],
+      screeningChat,
     });
   } catch (error: any) {
     console.error('Update application status error:', error);

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Rocket, Trophy, Plus, ArrowRight, TrendingUp, Users, Calendar, Loader2 } from 'lucide-react';
+import { Rocket, Trophy, Plus, ArrowRight, TrendingUp, Users, Calendar, Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/context/AuthContext';
@@ -29,6 +29,7 @@ export function Dashboard() {
   const [hackathons, setHackathons] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [receivedApplications, setReceivedApplications] = useState<any[]>([]);
+  const [screeningChats, setScreeningChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,17 +39,19 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [startupsRes, hackathonsRes, applicationsRes, receivedRes] = await Promise.all([
+      const [startupsRes, hackathonsRes, applicationsRes, receivedRes, chatsRes] = await Promise.all([
         apiService.getStartups({ limit: 3 }),
         apiService.getHackathons({ limit: 3 }),
         apiService.getMyApplications().catch(() => ({ applications: [] })), // Handle if user has no applications
         apiService.getReceivedApplications().catch(() => ({ applications: [] })), // Handle if user has no received applications
+        apiService.getMyScreeningChats().catch(() => ({ screeningChats: [] })), // Handle if user has no chats
       ]);
       
       setStartups(startupsRes.startups);
       setHackathons(hackathonsRes.hackathons);
       setApplications(applicationsRes.applications);
       setReceivedApplications(receivedRes.applications);
+      setScreeningChats(chatsRes.screeningChats);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -142,7 +145,7 @@ export function Dashboard() {
               className="border-white/20 text-white hover:bg-white/10 rounded-full"
             >
               <Trophy className="w-4 h-4 mr-2" />
-              Find Hackathons
+              Join Hackathon Teams
             </Button>
             <Button
               onClick={() => navigate('/create')}
@@ -185,14 +188,21 @@ export function Dashboard() {
                       <StartupCard 
                         key={startup.id} 
                         startup={{
-                          startup_id: startup.id,
-                          startup_name: startup.name,
+                          id: startup.id,
+                          founderId: startup.founderId,
+                          name: startup.name,
                           description: startup.description,
                           stage: startup.stage,
-                          skills_needed: startup.skillsNeeded || [],
-                          founder_name: startup.founder?.name || 'Unknown',
-                          founder_avatar: startup.founder?.avatar,
-                          created_at: new Date(startup.createdAt),
+                          skillsNeeded: startup.skillsNeeded || [],
+                          createdAt: new Date(startup.createdAt),
+                          founder: startup.founder ? {
+                            id: startup.founder.id,
+                            name: startup.founder.name,
+                            avatar: startup.founder.avatar,
+                            college: startup.founder.college,
+                            city: startup.founder.city,
+                            bio: startup.founder.bio,
+                          } : undefined,
                         }} 
                         index={index} 
                       />
@@ -238,15 +248,22 @@ export function Dashboard() {
                       <HackathonCard 
                         key={hackathon.id} 
                         hackathon={{
-                          hackathon_id: hackathon.id,
-                          hackathon_name: hackathon.name,
+                          id: hackathon.id,
+                          creatorId: hackathon.creatorId,
+                          name: hackathon.name,
                           description: hackathon.description,
-                          team_size: hackathon.teamSize,
+                          teamSize: hackathon.teamSize,
                           deadline: new Date(hackathon.deadline),
-                          skills_needed: hackathon.skillsNeeded || [],
-                          creator_name: hackathon.creator?.name || 'Unknown',
-                          creator_avatar: hackathon.creator?.avatar,
-                          created_at: new Date(hackathon.createdAt),
+                          skillsNeeded: hackathon.skillsNeeded || [],
+                          createdAt: new Date(hackathon.createdAt),
+                          creator: hackathon.creator ? {
+                            id: hackathon.creator.id,
+                            name: hackathon.creator.name,
+                            avatar: hackathon.creator.avatar,
+                            college: hackathon.creator.college,
+                            city: hackathon.creator.city,
+                            bio: hackathon.creator.bio,
+                          } : undefined,
                         }} 
                         index={index} 
                       />
@@ -255,14 +272,14 @@ export function Dashboard() {
                 ) : (
                   <div className="text-center py-12 bg-card border border-border rounded-xl">
                     <Trophy className="w-12 h-12 text-white/30 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-white mb-2">No hackathons yet</h3>
-                    <p className="text-white/50 mb-4">Be the first to post a hackathon!</p>
+                    <h3 className="text-lg font-medium text-white mb-2">No hackathon teams yet</h3>
+                    <p className="text-white/50 mb-4">Be the first to create a team!</p>
                     <Button
                       onClick={() => navigate('/create')}
                       className="bg-white text-black hover:bg-white/90"
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Create Hackathon
+                      Create Team
                     </Button>
                   </div>
                 )}
@@ -313,6 +330,7 @@ export function Dashboard() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.6 }}
+                  className="mb-12"
                 >
                   <h2 className="text-xl font-semibold text-white mb-6">Applications Received</h2>
                   <div className="space-y-4">
@@ -393,8 +411,56 @@ export function Dashboard() {
                             </button>
                           </div>
                         )}
+
+                        {application.status === 'accepted' && application.screeningChat && (
+                          <button
+                            onClick={() => navigate(`/screening-chats/${application.screeningChat.id}`)}
+                            className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-sm rounded flex items-center gap-2"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            Open Chat
+                          </button>
+                        )}
                       </div>
                     ))}
+                  </div>
+                </motion.section>
+              )}
+
+              {/* My Chats */}
+              {screeningChats.length > 0 && (
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.7 }}
+                >
+                  <h2 className="text-xl font-semibold text-white mb-6">My Chats</h2>
+                  <div className="space-y-3">
+                    {screeningChats.map((chat) => {
+                      const otherUser = user?.id === chat.founderId ? chat.applicant : chat.founder;
+                      return (
+                        <div
+                          key={chat.id}
+                          onClick={() => navigate(`/screening-chats/${chat.id}`)}
+                          className="bg-card border border-border rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                              <MessageCircle className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-white">
+                                {otherUser?.name || 'Unknown User'}
+                              </h3>
+                              <p className="text-sm text-white/50">
+                                {chat.application?.post?.name || 'Screening Chat'}
+                              </p>
+                            </div>
+                          </div>
+                          <ArrowRight className="w-5 h-5 text-white/40" />
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.section>
               )}

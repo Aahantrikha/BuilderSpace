@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Rocket, User, Plus, Trophy, Home } from 'lucide-react';
+import { Menu, X, Rocket, User, Plus, Trophy, Home, MessageCircle, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
@@ -33,6 +33,7 @@ export function Navbar() {
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Startups', href: '/startups', icon: Rocket },
     { name: 'Hackathons', href: '/hackathons', icon: Trophy },
+    { name: 'Workspaces', href: '/workspaces', icon: Users },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
@@ -81,6 +82,14 @@ export function Navbar() {
             <div className="hidden md:flex items-center gap-3">
               {isAuthenticated ? (
                 <>
+                  <Button
+                    onClick={() => navigate('/messages')}
+                    variant="ghost"
+                    className="text-white/70 hover:text-white hover:bg-white/10 rounded-full p-2"
+                    title="Messages"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                  </Button>
                   <Button
                     onClick={() => navigate('/create')}
                     className="bg-white text-black hover:bg-white/90 rounded-full px-4 py-2 text-sm font-medium flex items-center gap-2"

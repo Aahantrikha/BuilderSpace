@@ -15,6 +15,7 @@ export function HackathonDetail() {
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [hackathon, setHackathon] = useState<any>(null);
   const [hasApplied, setHasApplied] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ export function HackathonDetail() {
       const response = await apiService.getHackathon(id!);
       setHackathon(response.hackathon);
       setHasApplied(response.hasApplied);
+      setIsCreator(response.isCreator || false);
     } catch (error: any) {
       setError(error.message || 'Failed to load hackathon');
     } finally {
@@ -124,16 +126,18 @@ export function HackathonDetail() {
               </div>
               <Button
                 onClick={() => setIsApplyModalOpen(true)}
-                disabled={daysLeft <= 0 || hasApplied}
+                disabled={daysLeft <= 0 || hasApplied || isCreator}
                 className={`rounded-full px-6 ${
-                  hasApplied 
+                  isCreator
+                    ? 'bg-blue-500/20 text-blue-400 cursor-not-allowed'
+                    : hasApplied 
                     ? 'bg-green-500/20 text-green-400 cursor-not-allowed' 
                     : daysLeft <= 0
                     ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed'
                     : 'bg-white text-black hover:bg-white/90'
                 }`}
               >
-                {hasApplied ? 'Applied' : daysLeft <= 0 ? 'Ended' : 'Apply to Join'}
+                {isCreator ? 'Your Team' : hasApplied ? 'Applied' : daysLeft <= 0 ? 'Ended' : 'Apply to Join'}
               </Button>
             </div>
 

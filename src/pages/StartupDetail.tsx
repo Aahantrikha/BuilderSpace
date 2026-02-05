@@ -16,6 +16,7 @@ export function StartupDetail() {
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [startup, setStartup] = useState<any>(null);
   const [hasApplied, setHasApplied] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +33,7 @@ export function StartupDetail() {
       const response = await apiService.getStartup(id!);
       setStartup(response.startup);
       setHasApplied(response.hasApplied);
+      setIsFounder(response.isFounder || false);
     } catch (error: any) {
       setError(error.message || 'Failed to load startup');
     } finally {
@@ -109,14 +111,16 @@ export function StartupDetail() {
               </div>
               <Button
                 onClick={() => setIsApplyModalOpen(true)}
-                disabled={hasApplied}
+                disabled={hasApplied || isFounder}
                 className={`rounded-full px-6 ${
-                  hasApplied 
+                  isFounder
+                    ? 'bg-blue-500/20 text-blue-400 cursor-not-allowed'
+                    : hasApplied 
                     ? 'bg-green-500/20 text-green-400 cursor-not-allowed' 
                     : 'bg-white text-black hover:bg-white/90'
                 }`}
               >
-                {hasApplied ? 'Applied' : 'Apply to Join'}
+                {isFounder ? 'Your Startup' : hasApplied ? 'Applied' : 'Apply to Join'}
               </Button>
             </div>
 

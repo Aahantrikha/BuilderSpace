@@ -1,15 +1,20 @@
 import jwt from 'jsonwebtoken';
 
 export const generateTokens = (userId: string, email: string) => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+
   const accessToken = jwt.sign(
     { userId, email },
-    process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    secret,
+    { expiresIn: '7d' }
   );
 
   const refreshToken = jwt.sign(
     { userId, email, type: 'refresh' },
-    process.env.JWT_SECRET!,
+    secret,
     { expiresIn: '30d' }
   );
 
@@ -17,5 +22,9 @@ export const generateTokens = (userId: string, email: string) => {
 };
 
 export const verifyToken = (token: string) => {
-  return jwt.verify(token, process.env.JWT_SECRET!);
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+  return jwt.verify(token, secret);
 };

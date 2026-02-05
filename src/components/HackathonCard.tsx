@@ -22,22 +22,22 @@ export function HackathonCard({ hackathon, index = 0 }: HackathonCardProps) {
       transition={{ duration: 0.5, delay: index * 0.1, ease: [0.4, 0, 0.2, 1] }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
     >
-      <Link to={`/hackathons/${hackathon.hackathon_id}`}>
+      <Link to={`/hackathons/${hackathon.id}`}>
         <div className="group bg-card border border-border rounded-xl p-6 hover:border-border-hover transition-all duration-300 h-full flex flex-col">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <Avatar className="w-10 h-10 border border-border">
-                <AvatarImage src={hackathon.creator_avatar} alt={hackathon.creator_name} />
+                <AvatarImage src={hackathon.creator?.avatar} alt={hackathon.creator?.name} />
                 <AvatarFallback className="bg-white/10 text-white">
                   <User className="w-5 h-5" />
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h3 className="font-semibold text-white group-hover:text-white/80 transition-colors">
-                  {hackathon.hackathon_name}
+                  {hackathon.name}
                 </h3>
-                <p className="text-sm text-white/50">by {hackathon.creator_name}</p>
+                <p className="text-sm text-white/50">by {hackathon.creator?.name || 'Unknown'}</p>
               </div>
             </div>
           </div>
@@ -51,7 +51,7 @@ export function HackathonCard({ hackathon, index = 0 }: HackathonCardProps) {
           <div className="flex items-center gap-4 mb-4 text-sm text-white/50">
             <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4" />
-              <span>Team of {hackathon.team_size}</span>
+              <span>Team of {hackathon.teamSize}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
@@ -63,12 +63,12 @@ export function HackathonCard({ hackathon, index = 0 }: HackathonCardProps) {
 
           {/* Skills */}
           <div className="flex flex-wrap gap-2 mb-4">
-            {hackathon.skills_needed.slice(0, 3).map((skill) => (
+            {hackathon.skillsNeeded.slice(0, 3).map((skill) => (
               <SkillBadge key={skill} skill={skill} variant="small" />
             ))}
-            {hackathon.skills_needed.length > 3 && (
+            {hackathon.skillsNeeded.length > 3 && (
               <span className="text-xs text-white/40 px-2 py-0.5">
-                +{hackathon.skills_needed.length - 3}
+                +{hackathon.skillsNeeded.length - 3}
               </span>
             )}
           </div>
@@ -76,7 +76,7 @@ export function HackathonCard({ hackathon, index = 0 }: HackathonCardProps) {
           {/* Footer */}
           <div className="flex items-center justify-between pt-4 border-t border-border">
             <span className="text-xs text-white/40">
-              {new Date(hackathon.created_at).toLocaleDateString('en-US', {
+              {new Date(hackathon.createdAt).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
               })}

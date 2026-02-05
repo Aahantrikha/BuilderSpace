@@ -61,7 +61,7 @@ export function Hackathons() {
                   Hackathons
                 </h1>
                 <p className="text-white/60">
-                  Find hackathons and coding competitions to participate in.
+                  Join teams for hackathons and coding competitions.
                 </p>
               </div>
               <Button
@@ -69,7 +69,7 @@ export function Hackathons() {
                 className="bg-white text-black hover:bg-white/90 rounded-full"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Post Hackathon
+                Create Team
               </Button>
             </div>
 
@@ -118,15 +118,22 @@ export function Hackathons() {
                   <HackathonCard
                     key={hackathon.id}
                     hackathon={{
-                      hackathon_id: hackathon.id,
-                      hackathon_name: hackathon.name,
+                      id: hackathon.id,
+                      creatorId: hackathon.creatorId,
+                      name: hackathon.name,
                       description: hackathon.description,
-                      team_size: hackathon.teamSize,
+                      teamSize: hackathon.teamSize,
                       deadline: new Date(hackathon.deadline),
-                      skills_needed: hackathon.skillsNeeded || [],
-                      creator_name: hackathon.creator?.name || 'Unknown',
-                      creator_avatar: hackathon.creator?.avatar,
-                      created_at: new Date(hackathon.createdAt),
+                      skillsNeeded: hackathon.skillsNeeded || [],
+                      createdAt: new Date(hackathon.createdAt),
+                      creator: hackathon.creator ? {
+                        id: hackathon.creator.id,
+                        name: hackathon.creator.name,
+                        avatar: hackathon.creator.avatar,
+                        college: hackathon.creator.college,
+                        city: hackathon.creator.city,
+                        bio: hackathon.creator.bio,
+                      } : undefined,
                     }}
                     index={index}
                   />
@@ -142,7 +149,7 @@ export function Hackathons() {
                 </h3>
                 <p className="text-white/50">
                   {hackathons.length === 0 
-                    ? 'Be the first to post a hackathon!' 
+                    ? 'Be the first to create a team!' 
                     : 'Try adjusting your search'
                   }
                 </p>
@@ -152,7 +159,7 @@ export function Hackathons() {
                     className="mt-4 bg-white text-black hover:bg-white/90"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Create Hackathon
+                    Create Team
                   </Button>
                 )}
               </div>

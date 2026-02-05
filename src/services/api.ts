@@ -196,6 +196,92 @@ class ApiService {
       body: JSON.stringify({ status }),
     });
   }
+
+  // Get user's own startups
+  async getMyStartups() {
+    return this.request<{ startups: any[] }>('/startups/my');
+  }
+
+  // Get user's own hackathons
+  async getMyHackathons() {
+    return this.request<{ hackathons: any[] }>('/hackathons/my');
+  }
+
+  // Screening Chats endpoints
+  async getMyScreeningChats() {
+    return this.request<{ screeningChats: any[] }>('/screening-chats');
+  }
+
+  async getScreeningChat(chatId: string) {
+    return this.request<{ screeningChat: any }>(`/screening-chats/${chatId}`);
+  }
+
+  async getScreeningMessages(chatId: string) {
+    return this.request<{ messages: any[] }>(`/screening-chats/${chatId}/messages`);
+  }
+
+  async sendScreeningMessage(chatId: string, content: string) {
+    return this.request<{ message: any }>(`/screening-chats/${chatId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  // Workspaces endpoints
+  async getMyWorkspaces() {
+    return this.request<{ spaces: any[] }>('/builder-spaces/my');
+  }
+
+  async createWorkspace(data: { name: string; description?: string }) {
+    return this.request<{ workspace: any }>('/builder-spaces', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWorkspace(workspaceId: string) {
+    return this.request<{ space: any }>(`/builder-spaces/${workspaceId}`);
+  }
+
+  async getWorkspaceMessages(workspaceId: string) {
+    return this.request<{ messages: any[] }>(`/builder-spaces/${workspaceId}/messages`);
+  }
+
+  async sendWorkspaceMessage(workspaceId: string, content: string) {
+    return this.request<{ data: any }>(`/builder-spaces/${workspaceId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async getWorkspaceLinks(workspaceId: string) {
+    return this.request<{ links: any[] }>(`/builder-spaces/${workspaceId}/links`);
+  }
+
+  async addWorkspaceLink(workspaceId: string, data: { title: string; url: string; description?: string }) {
+    return this.request<{ link: any }>(`/builder-spaces/${workspaceId}/links`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWorkspaceTasks(workspaceId: string) {
+    return this.request<{ tasks: any[] }>(`/builder-spaces/${workspaceId}/tasks`);
+  }
+
+  async createWorkspaceTask(workspaceId: string, data: { title: string; description?: string }) {
+    return this.request<{ task: any }>(`/builder-spaces/${workspaceId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateWorkspaceTask(workspaceId: string, taskId: string, data: { completed: boolean }) {
+    return this.request<{ task: any }>(`/builder-spaces/${workspaceId}/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiService = new ApiService();

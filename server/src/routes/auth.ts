@@ -285,12 +285,20 @@ router.put('/profile', authenticateToken, async (req: AuthRequest, res) => {
     delete (updateData as any).email;
     delete (updateData as any).password;
 
+    // Ensure preferences is properly typed
+    const setData: any = {
+      ...updateData,
+      updatedAt: new Date(),
+    };
+
+    // Handle preferences separately if it exists
+    if (updateData.preferences) {
+      setData.preferences = updateData.preferences;
+    }
+
     const updatedUser = await db
       .update(users)
-      .set({
-        ...updateData,
-        updatedAt: new Date(),
-      })
+      .set(setData)
       .where(eq(users.id, req.user!.id))
       .returning({
         id: users.id,

@@ -1,10 +1,36 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, hackathons, users, applications, insertHackathonSchema } from '../db/index.js';
+import { db, hackathons, users, applications, insertHackathonSchema, teamSpaces, teamMembers } from '../db/index.js';
 import { eq, desc, ilike, or, and, gte } from 'drizzle-orm';
 import { authenticateToken, AuthRequest, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// Get user's own hackathons
+router.get('/my', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userHackathons = await db
+      .select({
+        id: hackathons.id,
+        name: hackathons.name,
+        description: hackathons.description,
+        teamSize: hackathons.teamSize,
+        deadline: hackathons.deadline,
+        skillsNeeded: hackathons.skillsNeeded,
+        creatorId: hackathons.creatorId,
+        createdAt: hackathons.createdAt,
+        updatedAt: hackathons.updatedAt,
+      })
+      .from(hackathons)
+      .where(eq(hackathons.creatorId, req.user!.id))
+      .orderBy(desc(hackathons.createdAt));
+    
+    res.json({ hackathons: userHackathons });
+  } catch (error) {
+    console.error('Get user hackathons error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get all hackathons with optional filtering
 router.get('/', optionalAuth, async (req: AuthRequest, res) => {
@@ -93,27 +119,43 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Hackathon not found' });
     }
 
-    // Check if current user has applied
+    // Check if current user has applied or is the creator
     let hasApplied = false;
+    let isCreator = false;
     if (req.user) {
-      const application = await db
+      // Check if user is the creator
+      const hackathonRecord = await db
         .select()
-        .from(applications)
-        .where(
-          and(
-            eq(applications.applicantId, req.user.id),
-            eq(applications.postId, id),
-            eq(applications.postType, 'hackathon')
-          )
-        )
+        .from(hackathons)
+        .where(eq(hackathons.id, id))
         .limit(1);
+      
+      if (hackathonRecord.length > 0) {
+        isCreator = hackathonRecord[0].creatorId === req.user.id;
+      }
 
-      hasApplied = application.length > 0;
+      // Only check for applications if user is not the creator
+      if (!isCreator) {
+        const application = await db
+          .select()
+          .from(applications)
+          .where(
+            and(
+              eq(applications.applicantId, req.user.id),
+              eq(applications.postId, id),
+              eq(applications.postType, 'hackathon')
+            )
+          )
+          .limit(1);
+
+        hasApplied = application.length > 0;
+      }
     }
 
     res.json({ 
       hackathon: hackathon[0],
-      hasApplied 
+      hasApplied,
+      isCreator
     });
   } catch (error: any) {
     console.error('Get hackathon error:', error);
@@ -142,9 +184,35 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         createdAt: hackathons.createdAt,
       });
 
+    // Auto-create Builder Space (workspace) for this hackathon
+    const workspace = await db
+      .insert(teamSpaces)
+      .values({
+        id: crypto.randomUUID(),
+        postType: 'hackathon',
+        postId: newHackathon[0].id,
+        name: `${newHackathon[0].name} Workspace`,
+        description: `Collaboration workspace for ${newHackathon[0].name}`,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    // Add creator as first team member
+    await db
+      .insert(teamMembers)
+      .values({
+        id: crypto.randomUUID(),
+        userId: req.user!.id,
+        postType: 'hackathon',
+        postId: newHackathon[0].id,
+        role: 'founder',
+        joinedAt: new Date(),
+      });
+
     res.status(201).json({
       message: 'Hackathon created successfully',
       hackathon: newHackathon[0],
+      workspace: workspace[0],
     });
   } catch (error: any) {
     console.error('Create hackathon error:', error?.message || error);

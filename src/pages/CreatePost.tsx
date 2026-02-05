@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Navbar } from '@/components/Navbar';
 import { allSkills } from '@/data/mockData';
 import { apiService } from '@/services/api';
 
 const tabs = [
   { id: 'startup', label: 'Create Startup', icon: Rocket },
-  { id: 'hackathon', label: 'Create Hackathon', icon: Trophy },
+  { id: 'hackathon', label: 'Create a Team for Hackathon', icon: Trophy },
 ];
 
 const stages = ['Idea', 'Prototype', 'Launched'];
@@ -36,7 +37,7 @@ export function CreatePost() {
     name: '',
     description: '',
     teamSize: 4,
-    deadline: '',
+    deadline: undefined as Date | undefined,
     skills: [] as string[],
   });
 
@@ -76,7 +77,7 @@ export function CreatePost() {
           name: hackathonForm.name,
           description: hackathonForm.description,
           teamSize: hackathonForm.teamSize,
-          deadline: new Date(hackathonForm.deadline),
+          deadline: hackathonForm.deadline!,
           skillsNeeded: hackathonForm.skills,
         });
         navigate('/hackathons');
@@ -121,7 +122,7 @@ export function CreatePost() {
               Create Post
             </h1>
             <p className="text-white/60">
-              Share your startup idea or hackathon with the community.
+              Share your startup idea or create a team for hackathons.
             </p>
           </motion.div>
 
@@ -254,13 +255,13 @@ export function CreatePost() {
                   className="space-y-6"
                 >
                   <div>
-                    <Label className="text-white/70 mb-2 block">Hackathon Name</Label>
+                    <Label className="text-white/70 mb-2 block">Hackathon/Event Name</Label>
                     <Input
                       value={hackathonForm.name}
                       onChange={(e) =>
                         setHackathonForm((prev) => ({ ...prev, name: e.target.value }))
                       }
-                      placeholder="e.g., GreenTech Hackathon"
+                      placeholder="e.g., AI for Climate Change Hackathon"
                       className="bg-background border-border text-white placeholder:text-white/30"
                     />
                   </div>
@@ -272,14 +273,14 @@ export function CreatePost() {
                       onChange={(e) =>
                         setHackathonForm((prev) => ({ ...prev, description: e.target.value }))
                       }
-                      placeholder="Describe your hackathon, theme, and what participants will build..."
+                      placeholder="Creating a team for this hackathon. Describe the event, your idea, and what skills you need..."
                       className="bg-background border-border text-white placeholder:text-white/30 min-h-[120px]"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-white/70 mb-2 block">Team Size</Label>
+                      <Label className="text-white/70 mb-2 block">Team Size Needed</Label>
                       <Input
                         type="number"
                         min={1}
@@ -295,14 +296,14 @@ export function CreatePost() {
                       />
                     </div>
                     <div>
-                      <Label className="text-white/70 mb-2 block">Deadline</Label>
-                      <Input
-                        type="date"
-                        value={hackathonForm.deadline}
-                        onChange={(e) =>
-                          setHackathonForm((prev) => ({ ...prev, deadline: e.target.value }))
+                      <Label className="text-white/70 mb-2 block">Event Deadline</Label>
+                      <DatePicker
+                        date={hackathonForm.deadline}
+                        onDateChange={(date) =>
+                          setHackathonForm((prev) => ({ ...prev, deadline: date }))
                         }
-                        className="bg-background border-border text-white"
+                        placeholder="Select event deadline"
+                        className="w-full"
                       />
                     </div>
                   </div>
@@ -343,7 +344,7 @@ export function CreatePost() {
                   'Creating...'
                 ) : (
                   <>
-                    Create {activeTab === 'startup' ? 'Startup' : 'Hackathon'}
+                    Create {activeTab === 'startup' ? 'Startup' : 'Team Request'}
                     <ChevronRight className="w-5 h-5 ml-2" />
                   </>
                 )}

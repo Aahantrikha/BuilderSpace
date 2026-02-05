@@ -1,8 +1,5 @@
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from './index.js';
-import postgres from 'postgres';
-
-const migrationClient = postgres(process.env.DATABASE_URL!, { max: 1 });
 
 async function main() {
   console.log('Running migrations...');
