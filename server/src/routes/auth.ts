@@ -79,7 +79,7 @@ router.post('/signup', async (req, res) => {
       accessToken,
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('Signup error:', error instanceof Error ? error.message : 'Unknown error');
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0].message });
     }
@@ -137,7 +137,7 @@ router.post('/login', async (req, res) => {
       accessToken,
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error:', error instanceof Error ? error.message : 'Unknown error');
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0].message });
     }
@@ -220,7 +220,7 @@ router.post('/google', async (req, res) => {
       accessToken,
     });
   } catch (error) {
-    console.error('Google auth error:', error);
+    console.error('Google auth error:', error instanceof Error ? error.message : 'Unknown error');
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0].message });
     }
@@ -234,7 +234,7 @@ router.get('/google/url', (req, res) => {
     const authUrl = getGoogleAuthUrl();
     res.json({ authUrl });
   } catch (error) {
-    console.error('Google auth URL error:', error);
+    console.error('Google auth URL error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ error: 'Failed to generate Google auth URL' });
   }
 });
@@ -272,7 +272,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
 
     res.json({ user: user[0] });
   } catch (error) {
-    console.error('Get user error:', error);
+    console.error('Get user error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -318,7 +318,7 @@ router.put('/profile', authenticateToken, async (req: AuthRequest, res) => {
       user: updatedUser[0],
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('Update profile error:', error instanceof Error ? error.message : 'Unknown error');
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0].message });
     }

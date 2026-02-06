@@ -128,7 +128,7 @@ wss.on('connection', (ws, req) => {
 });
 
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 BuilderSpace API server running on port ${PORT}`);
   console.log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
