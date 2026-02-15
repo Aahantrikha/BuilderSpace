@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Rocket, Mail, ArrowRight, Chrome, Eye, EyeOff, AlertCircle } from 'lucide-react';
@@ -17,6 +17,7 @@ export function Auth() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -24,31 +25,67 @@ export function Auth() {
     return null;
   }
 
-  const handleGoogleLogin = async () => {
+  // Initialize Google Sign-In button
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    
+    if (!clientId || clientId === 'your-google-client-id-here') {
+      return;
+    }
+
+    // Wait for Google script to load
+    const initializeGoogle = () => {
+      if (window.google && googleButtonRef.current) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleResponse,
+            auto_select: false,
+          });
+
+          window.google.accounts.id.renderButton(
+            googleButtonRef.current,
+            {
+              theme: 'outline',
+              size: 'large',
+              width: googleButtonRef.current.offsetWidth,
+              text: isSignUp ? 'signup_with' : 'signin_with',
+              shape: 'rectangular',
+              logo_alignment: 'left',
+            }
+          );
+        } catch (error) {
+          console.error('Error initializing Google Sign-In:', error);
+        }
+      }
+    };
+
+    // Check if script is already loaded
+    if (window.google) {
+      initializeGoogle();
+    } else {
+      // Wait for script to load
+      const checkGoogle = setInterval(() => {
+        if (window.google) {
+          clearInterval(checkGoogle);
+          initializeGoogle();
+        }
+      }, 100);
+
+      // Cleanup
+      return () => clearInterval(checkGoogle);
+    }
+  }, [isSignUp]);
+
+  const handleGoogleResponse = async (response: any) => {
     try {
       setIsLoading(true);
       clearError();
-      
-      // Initialize Google Sign-In
-      if (typeof window !== 'undefined' && window.google) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: async (response: any) => {
-            try {
-              await googleLogin(response.credential);
-              navigate('/onboarding');
-            } catch (error) {
-              console.error('Google login failed:', error);
-            }
-          },
-        });
-
-        window.google.accounts.id.prompt();
-      } else {
-        throw new Error('Google Sign-In not loaded');
-      }
-    } catch (error) {
-      console.error('Google login error:', error);
+      await googleLogin(response.credential);
+      navigate('/onboarding');
+    } catch (error: any) {
+      console.error('Google login failed:', error);
+      // Error will be shown via the error state from AuthContext
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +140,7 @@ export function Auth() {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
               <Rocket className="w-6 h-6 text-black" />
             </div>
-            <span className="text-xl font-semibold text-white">BuilderSpace</span>
+            <span className="text-xl font-semibold text-white">CodeJam</span>
           </Link>
         </div>
 
@@ -115,7 +152,7 @@ export function Auth() {
             </h1>
             <p className="text-white/60">
               {isSignUp 
-                ? 'Join BuilderSpace to find your team and build your ideas'
+                ? 'Join CodeJam to find your team and build your ideas'
                 : 'Sign in to find your team and build your ideas'
               }
             </p>
@@ -130,14 +167,7 @@ export function Auth() {
           )}
 
           {/* Google Login */}
-          <Button
-            onClick={handleGoogleLogin}
-            disabled={isLoading}
-            className="w-full bg-white text-black hover:bg-white/90 rounded-xl py-6 text-base font-medium mb-6"
-          >
-            <Chrome className="w-5 h-5 mr-2" />
-            {isSignUp ? 'Sign up with Google' : 'Sign in with Google'}
-          </Button>
+          <div ref={googleButtonRef} className="w-full mb-6" style={{ minHeight: '44px' }} />
 
           {/* Divider */}
           <div className="relative mb-6">
@@ -220,11 +250,11 @@ export function Auth() {
               <Button
                 type="submit"
                 disabled={isLoading || !formData.email.trim() || !formData.password.trim() || (isSignUp && !formData.name.trim())}
-                className="w-full bg-white/10 text-white hover:bg-white/20 rounded-xl py-6 text-base font-medium disabled:opacity-50"
+                className="w-full bg-white text-black hover:bg-white/90 rounded-xl py-6 text-base font-medium disabled:opacity-50 disabled:bg-white/50"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
                     {isSignUp ? 'Creating account...' : 'Signing in...'}
                   </div>
                 ) : (

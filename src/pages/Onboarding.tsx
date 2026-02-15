@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Rocket, Check, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Rocket, Check, ChevronRight, ChevronLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,16 +9,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { allSkills } from '@/data/mockData';
 
-const steps = ['Basic Info', 'Skills', 'Preferences'];
+const steps = ['Avatar', 'Basic Info', 'Skills', 'Preferences'];
+
+const avatarStyles = [
+  'avataaars',
+  'bottts',
+  'fun-emoji',
+  'lorelei',
+  'micah',
+  'miniavs',
+  'notionists',
+  'personas',
+];
 
 export function Onboarding() {
   const navigate = useNavigate();
   const { updateUser, user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [formData, setFormData] = useState({
     name: user?.name || '',
+    avatar: user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'default'}`,
     college: user?.college || '',
     city: user?.city || '',
     bio: user?.bio || '',
@@ -37,6 +50,37 @@ export function Onboarding() {
         ? prev.skills.filter((s) => s !== skill)
         : [...prev.skills, skill],
     }));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((prev) => ({ ...prev, avatar: reader.result as string }));
+      setUploadingImage(false);
+    };
+    reader.onerror = () => {
+      alert('Failed to read image');
+      setUploadingImage(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleNext = () => {
@@ -75,10 +119,12 @@ export function Onboarding() {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return formData.name && formData.college && formData.city;
+        return formData.avatar;
       case 1:
-        return formData.skills.length > 0;
+        return formData.name && formData.college && formData.city;
       case 2:
+        return formData.skills.length > 0;
+      case 3:
         return true;
       default:
         return false;
@@ -99,7 +145,7 @@ export function Onboarding() {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
               <Rocket className="w-6 h-6 text-black" />
             </div>
-            <span className="text-xl font-semibold text-white">BuilderSpace</span>
+            <span className="text-xl font-semibold text-white">CodeJam</span>
           </div>
         </div>
 
@@ -151,6 +197,79 @@ export function Onboarding() {
             transition={{ duration: 0.3 }}
           >
             {currentStep === 0 && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">
+                    Choose your avatar
+                  </h2>
+                  <p className="text-white/60">
+                    Upload a custom image or select an avatar style.
+                  </p>
+                </div>
+
+                {/* Current Avatar Preview */}
+                <div className="flex justify-center">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/20">
+                    <img 
+                      src={formData.avatar} 
+                      alt="Avatar preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+
+                {/* Upload Custom Image */}
+                <div className="flex justify-center">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg hover:bg-white/90 transition-colors">
+                      <Upload className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        {uploadingImage ? 'Uploading...' : 'Upload Custom Image'}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="text-center text-sm text-white/40">or choose a style below</div>
+
+                {/* Avatar Style Selection */}
+                <div className="grid grid-cols-4 gap-3">
+                  {avatarStyles.map((style) => {
+                    const avatarUrl = `https://api.dicebear.com/7.x/${style}/svg?seed=${formData.name || 'default'}`;
+                    return (
+                      <button
+                        key={style}
+                        onClick={() => setFormData((prev) => ({ ...prev, avatar: avatarUrl }))}
+                        className={`aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200 ${
+                          formData.avatar === avatarUrl
+                            ? 'border-white scale-105'
+                            : 'border-white/20 hover:border-white/40'
+                        }`}
+                      >
+                        <img 
+                          src={avatarUrl} 
+                          alt={style}
+                          className="w-full h-full"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-sm text-white/50 text-center">
+                  Your avatar is generated based on your name
+                </p>
+              </div>
+            )}
+
+            {currentStep === 1 && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-white mb-2">
@@ -213,7 +332,7 @@ export function Onboarding() {
               </div>
             )}
 
-            {currentStep === 1 && (
+            {currentStep === 2 && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-white mb-2">
@@ -246,7 +365,7 @@ export function Onboarding() {
               </div>
             )}
 
-            {currentStep === 2 && (
+            {currentStep === 3 && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold text-white mb-2">

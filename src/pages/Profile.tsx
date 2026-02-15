@@ -96,7 +96,7 @@ export function Profile() {
             <div className="flex flex-col sm:flex-row items-start gap-6">
               {/* Avatar */}
               <Avatar className="w-24 h-24 border-4 border-border">
-                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`} alt={user.name} />
+                <AvatarImage src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`} alt={user.name} />
                 <AvatarFallback className="bg-white/10 text-white text-2xl">
                   <User className="w-10 h-10" />
                 </AvatarFallback>
@@ -123,6 +123,7 @@ export function Profile() {
                   <Button
                     variant="outline"
                     className="border-white/20 text-white hover:bg-white/10 rounded-full"
+                    onClick={() => window.location.href = '/onboarding'}
                   >
                     <Edit className="w-4 h-4 mr-2" />
                     Edit Profile
@@ -187,17 +188,36 @@ export function Profile() {
                           <h3 className="font-semibold text-white text-lg">
                             {startup.name}
                           </h3>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              startup.stage === 'Idea'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : startup.stage === 'Prototype'
-                                ? 'bg-blue-500/20 text-blue-400'
-                                : 'bg-green-500/20 text-green-400'
-                            }`}
-                          >
-                            {startup.stage}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                startup.stage === 'Idea'
+                                  ? 'bg-yellow-500/20 text-yellow-400'
+                                  : startup.stage === 'Prototype'
+                                  ? 'bg-blue-500/20 text-blue-400'
+                                  : 'bg-green-500/20 text-green-400'
+                              }`}
+                            >
+                              {startup.stage}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                if (confirm('Are you sure you want to delete this startup? This action cannot be undone.')) {
+                                  try {
+                                    await apiService.deleteStartup(startup.id);
+                                    loadProfileData();
+                                  } catch (error) {
+                                    console.error('Failed to delete startup:', error);
+                                  }
+                                }
+                              }}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </div>
                         <p className="text-white/60 mb-4">{startup.description}</p>
                         <div className="flex flex-wrap gap-2">
@@ -238,12 +258,31 @@ export function Profile() {
                         className="bg-card border border-border rounded-xl p-6"
                       >
                         <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-semibold text-white text-lg">
-                            {hackathon.name}
-                          </h3>
-                          <span className="text-sm text-white/50">
-                            Team of {hackathon.teamSize}
-                          </span>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-white text-lg">
+                              {hackathon.name}
+                            </h3>
+                            <span className="text-sm text-white/50">
+                              Team of {hackathon.teamSize}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to delete this hackathon? This action cannot be undone.')) {
+                                try {
+                                  await apiService.deleteHackathon(hackathon.id);
+                                  loadProfileData();
+                                } catch (error) {
+                                  console.error('Failed to delete hackathon:', error);
+                                }
+                              }
+                            }}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            Delete
+                          </Button>
                         </div>
                         <p className="text-white/60 mb-4">{hackathon.description}</p>
                         <div className="flex items-center justify-between">

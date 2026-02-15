@@ -25,7 +25,7 @@ export function StartupCard({ startup, index = 0 }: StartupCardProps) {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <Avatar className="w-10 h-10 border border-border">
-                <AvatarImage src={startup.founder?.avatar} alt={startup.founder?.name} />
+                <AvatarImage src={startup.logo || `https://api.dicebear.com/7.x/shapes/svg?seed=${startup.name}`} alt={startup.name} />
                 <AvatarFallback className="bg-white/10 text-white">
                   <User className="w-5 h-5" />
                 </AvatarFallback>

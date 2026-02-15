@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { StartupCard } from '@/components/StartupCard';
 import { HackathonCard } from '@/components/HackathonCard';
 import { apiService } from '@/services/api';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { useState, useEffect } from 'react';
 
 const fadeInUp = {
@@ -30,21 +31,33 @@ export function Dashboard() {
   const [applications, setApplications] = useState<any[]>([]);
   const [receivedApplications, setReceivedApplications] = useState<any[]>([]);
   const [screeningChats, setScreeningChats] = useState<any[]>([]);
+  const [stats, setStats] = useState({ users: 0, startups: 0, hackathons: 0, applications: 0 });
   const [loading, setLoading] = useState(true);
+
+  // Connect to WebSocket for real-time stats updates
+  const { lastMessage } = useWebSocket(user?.id || null);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
+  // Listen for real-time stats updates
+  useEffect(() => {
+    if (lastMessage?.type === 'stats_update') {
+      setStats(lastMessage.payload);
+    }
+  }, [lastMessage]);
+
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [startupsRes, hackathonsRes, applicationsRes, receivedRes, chatsRes] = await Promise.all([
+      const [startupsRes, hackathonsRes, applicationsRes, receivedRes, chatsRes, statsRes] = await Promise.all([
         apiService.getStartups({ limit: 3 }),
         apiService.getHackathons({ limit: 3 }),
         apiService.getMyApplications().catch(() => ({ applications: [] })), // Handle if user has no applications
         apiService.getReceivedApplications().catch(() => ({ applications: [] })), // Handle if user has no received applications
         apiService.getMyScreeningChats().catch(() => ({ screeningChats: [] })), // Handle if user has no chats
+        apiService.getStats().catch(() => ({ stats: { users: 0, startups: 0, hackathons: 0, applications: 0 } })),
       ]);
       
       setStartups(startupsRes.startups);
@@ -52,6 +65,7 @@ export function Dashboard() {
       setApplications(applicationsRes.applications);
       setReceivedApplications(receivedRes.applications);
       setScreeningChats(chatsRes.screeningChats);
+      setStats(statsRes.stats);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -87,11 +101,13 @@ export function Dashboard() {
             transition={{ duration: 0.5 }}
             className="mb-10"
           >
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
-              Welcome back, {user?.name.split(' ')[0]}!
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+              <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+                Welcome back, {user?.name.split(' ')[0]}!
+              </span>
             </h1>
             <p className="text-white/60">
-              Here's what's happening in the BuilderSpace community.
+              Here's what's happening in the CodeJam community.
             </p>
           </motion.div>
 
@@ -103,24 +119,67 @@ export function Dashboard() {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
           >
             {[
-              { icon: TrendingUp, label: 'Startups', value: loading ? '...' : `${startups.length}+`, change: 'Active now' },
-              { icon: Trophy, label: 'Hackathons', value: loading ? '...' : `${hackathons.length}+`, change: 'Upcoming' },
-              { icon: Users, label: 'Builders', value: '10K+', change: '+150 this week' },
-              { icon: Calendar, label: 'Applications', value: loading ? '...' : applications.length.toString(), change: 'Your apps' },
+              { 
+                icon: TrendingUp, 
+                label: 'Startups', 
+                value: loading ? '...' : `${stats.startups}`, 
+                change: 'Active now',
+                gradient: 'from-blue-500/20 to-cyan-500/20',
+                iconBg: 'bg-blue-500/20',
+                iconColor: 'text-blue-400'
+              },
+              { 
+                icon: Trophy, 
+                label: 'Hackathons', 
+                value: loading ? '...' : `${stats.hackathons}`, 
+                change: 'Upcoming',
+                gradient: 'from-purple-500/20 to-pink-500/20',
+                iconBg: 'bg-purple-500/20',
+                iconColor: 'text-purple-400'
+              },
+              { 
+                icon: Users, 
+                label: 'Builders', 
+                value: loading ? '...' : `${stats.users}`, 
+                change: 'Total users',
+                gradient: 'from-green-500/20 to-emerald-500/20',
+                iconBg: 'bg-green-500/20',
+                iconColor: 'text-green-400'
+              },
+              { 
+                icon: Calendar, 
+                label: 'Applications', 
+                value: loading ? '...' : `${stats.applications}`, 
+                change: 'Platform wide',
+                gradient: 'from-orange-500/20 to-red-500/20',
+                iconBg: 'bg-orange-500/20',
+                iconColor: 'text-orange-400'
+              },
             ].map((stat) => (
               <motion.div
                 key={stat.label}
                 variants={fadeInUp}
-                className="bg-card border border-border rounded-xl p-6"
+                whileHover={{ y: -4, scale: 1.02 }}
+                className={`relative overflow-hidden bg-gradient-to-br ${stat.gradient} border border-white/10 rounded-2xl p-6 group cursor-pointer`}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
-                    <stat.icon className="w-5 h-5 text-white" />
+                {/* Animated background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 ${stat.iconBg} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                      <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
+                    </div>
+                    <span className="text-xs text-white/40 font-medium">{stat.change}</span>
                   </div>
-                  <span className="text-xs text-white/40">{stat.change}</span>
+                  <div className="text-3xl font-bold text-white mb-1 group-hover:scale-105 transition-transform duration-300">{stat.value}</div>
+                  <div className="text-sm text-white/60 font-medium">{stat.label}</div>
                 </div>
-                <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-sm text-white/50">{stat.label}</div>
+
+                {/* Shine effect on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                </div>
               </motion.div>
             ))}
           </motion.div>
@@ -134,23 +193,21 @@ export function Dashboard() {
           >
             <Button
               onClick={() => navigate('/startups')}
-              className="bg-white text-black hover:bg-white/90 rounded-full"
+              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-full px-6 py-6 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300"
             >
               <Rocket className="w-4 h-4 mr-2" />
               Browse Startups
             </Button>
             <Button
               onClick={() => navigate('/hackathons')}
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 rounded-full"
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full px-6 py-6 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300"
             >
               <Trophy className="w-4 h-4 mr-2" />
               Join Hackathon Teams
             </Button>
             <Button
               onClick={() => navigate('/create')}
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 rounded-full"
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-full px-6 py-6 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-300"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Post

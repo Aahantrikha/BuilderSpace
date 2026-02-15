@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db, applications, startups, hackathons, users, teamMembers, insertApplicationSchema } from '../db/index.js';
 import { eq, desc, and, or, inArray } from 'drizzle-orm';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { broadcastStatsUpdate } from '../utils/statsHelper.js';
 
 const router = Router();
 
@@ -69,6 +70,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         applicantId: req.user!.id,
       })
       .returning();
+
+    // Broadcast stats update
+    broadcastStatsUpdate();
 
     res.status(201).json({
       message: 'Application submitted successfully',

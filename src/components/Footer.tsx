@@ -3,34 +3,42 @@ import { Rocket, Twitter, Github, Linkedin, Instagram } from 'lucide-react';
 
 export function Footer() {
   const footerLinks = {
-    Product: ['AI', 'Design', 'Publish', 'CMS', 'SEO', 'Collaborate'],
-    Company: ['About', 'Careers', 'Contact', 'Press', 'Partners', 'Legal'],
-    Resources: ['Templates', 'Plugins', 'Components', 'Tutorials', 'Blog', 'Changelog'],
-    Support: ['Help Center', 'Community', 'Status', 'Security', 'Terms', 'Privacy'],
+    Platform: [
+      { name: 'Startups', href: '/startups' },
+      { name: 'Hackathons', href: '/hackathons' },
+      { name: 'Dashboard', href: '/dashboard' },
+    ],
+    Company: [
+      { name: 'About', href: '#' },
+      { name: 'Contact', href: '#' },
+    ],
+    Legal: [
+      { name: 'Privacy', href: '#' },
+      { name: 'Terms', href: '#' },
+    ],
   };
 
   const socialLinks = [
     { name: 'Twitter', icon: Twitter, href: '#' },
     { name: 'GitHub', icon: Github, href: '#' },
     { name: 'LinkedIn', icon: Linkedin, href: '#' },
-    { name: 'Instagram', icon: Instagram, href: '#' },
   ];
 
   return (
     <footer id="footer" className="bg-black border-t border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           {/* Logo Column */}
           <div className="col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                 <Rocket className="w-5 h-5 text-black" />
               </div>
-              <span className="text-lg font-semibold text-white">BuilderSpace</span>
+              <span className="text-lg font-semibold text-white">CodeJam</span>
             </Link>
             <p className="text-sm text-white/50 mb-6 max-w-xs">
-              Find your team. Build your idea. Connect with student builders and create something amazing.
+              Find your team. Build your idea. Connect with student builders on CodeJam.
             </p>
             {/* Social Links */}
             <div className="flex gap-3">
@@ -53,13 +61,13 @@ export function Footer() {
               <h3 className="text-sm font-semibold text-white mb-4">{category}</h3>
               <ul className="space-y-3">
                 {links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#"
+                  <li key={link.name}>
+                    <Link
+                      to={link.href}
                       className="text-sm text-white/50 hover:text-white transition-colors duration-200"
                     >
-                      {link}
-                    </a>
+                      {link.name}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -70,18 +78,15 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-white/40">
-            &copy; {new Date().getFullYear()} BuilderSpace. All rights reserved.
+            &copy; {new Date().getFullYear()} CodeJam. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">
+            <Link to="#" className="text-sm text-white/40 hover:text-white transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">
+            </Link>
+            <Link to="#" className="text-sm text-white/40 hover:text-white transition-colors">
               Terms of Service
-            </a>
-            <a href="#" className="text-sm text-white/40 hover:text-white transition-colors">
-              Cookies
-            </a>
+            </Link>
           </div>
         </div>
       </div>

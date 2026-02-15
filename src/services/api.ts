@@ -1,8 +1,25 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Automatically detect the correct API URL based on current host
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // If accessing from network (not localhost), use the same host for API
+  const currentHost = window.location.hostname;
+  if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+    return `http://${currentHost}:3001/api`;
+  }
+  
+  // Default to localhost
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   private getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('builderspace_token');
+    const token = localStorage.getItem('kaivan_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
@@ -296,6 +313,30 @@ class ApiService {
 
   async removeMemberFromWorkspace(workspaceId: string, memberId: string) {
     return this.request<{ message: string }>(`/builder-spaces/${workspaceId}/members/${memberId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Stats endpoints
+  async getStats() {
+    return this.request<{ stats: { users: number; startups: number; hackathons: number; applications: number } }>('/stats');
+  }
+
+  // Delete methods
+  async deleteStartup(startupId: string) {
+    return this.request<{ message: string }>(`/startups/${startupId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteHackathon(hackathonId: string) {
+    return this.request<{ message: string }>(`/hackathons/${hackathonId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteWorkspace(workspaceId: string) {
+    return this.request<{ message: string }>(`/builder-spaces/${workspaceId}`, {
       method: 'DELETE',
     });
   }

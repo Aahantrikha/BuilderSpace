@@ -1,5 +1,5 @@
 import { db as defaultDb, applications, screeningMessages, users, startups, hackathons } from '../db/index.js';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and, or, ne, desc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 
 export interface ScreeningChatParticipants {
@@ -312,6 +312,25 @@ export class ScreeningChatService {
           this.db.select().from(users).where(eq(users.id, app.applicantId)).limit(1),
         ]);
 
+        // Get last message for this chat
+        const lastMessage = await this.db
+          .select()
+          .from(screeningMessages)
+          .where(eq(screeningMessages.chatId, app.id))
+          .orderBy(sql`${screeningMessages.createdAt} DESC`)
+          .limit(1);
+
+        // Get unread message count (messages sent by the other person that were created after user last viewed)
+        const unreadMessages = await this.db
+          .select()
+          .from(screeningMessages)
+          .where(
+            and(
+              eq(screeningMessages.chatId, app.id),
+              ne(screeningMessages.senderId, userId) // Messages from the other person
+            )
+          );
+
         return {
           id: app.id,
           applicationId: app.id,
@@ -340,6 +359,12 @@ export class ScreeningChatService {
               postType: app.postType,
             },
           },
+          lastMessage: lastMessage[0] ? {
+            content: lastMessage[0].content,
+            createdAt: lastMessage[0].createdAt,
+            senderId: lastMessage[0].senderId,
+          } : undefined,
+          unreadCount: unreadMessages.length,
         };
       })
     );

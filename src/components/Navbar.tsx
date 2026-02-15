@@ -29,7 +29,7 @@ export function Navbar() {
     { name: 'Teams', href: '#how-it-works' },
     { name: 'Resources', href: '#resources' },
     { name: 'Community', href: '/auth' },
-    { name: 'Support', href: 'mailto:support@builderspace.com' },
+    { name: 'Support', href: 'mailto:support@codejam.com' },
   ];
 
   const privateNavLinks = [
@@ -55,9 +55,13 @@ export function Navbar() {
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled || !isLandingPage
-            ? 'bg-black/80 backdrop-blur-xl border-b border-border'
+            ? 'bg-black/50 backdrop-blur-md border-b border-white/10'
             : 'bg-transparent'
         }`}
+        style={{
+          backdropFilter: (isScrolled || !isLandingPage) ? 'blur(12px) saturate(180%)' : 'none',
+          WebkitBackdropFilter: (isScrolled || !isLandingPage) ? 'blur(12px) saturate(180%)' : 'none',
+        }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -67,7 +71,7 @@ export function Navbar() {
                 <Rocket className="w-5 h-5 text-black" />
               </div>
               <span className="text-lg font-semibold text-white group-hover:opacity-80 transition-opacity">
-                BuilderSpace
+                CodeJam
               </span>
             </Link>
 

@@ -25,7 +25,7 @@ const codeSnippets = [
   '01001000 01100101',
   'SELECT * FROM ideas',
   'while(building) { grow() }',
-  '<BuilderSpace />',
+  '<CodeJam />',
   'return <Innovation />',
   'useEffect(() => {})',
   'interface Builder {}',

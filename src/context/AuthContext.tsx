@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is already authenticated
-    const token = localStorage.getItem('builderspace_token');
+    const token = localStorage.getItem('kaivan_token');
     if (token) {
       getCurrentUser();
     } else {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Failed to get current user:', error);
       // Clear invalid token
-      localStorage.removeItem('builderspace_token');
+      localStorage.removeItem('kaivan_token');
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiService.login({ email, password });
       
       // Store token
-      localStorage.setItem('builderspace_token', response.accessToken);
+      localStorage.setItem('kaivan_token', response.accessToken);
       setUser(response.user);
     } catch (error: any) {
       setError(error.message || 'Login failed');
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiService.signup({ name, email, password });
       
       // Store token
-      localStorage.setItem('builderspace_token', response.accessToken);
+      localStorage.setItem('kaivan_token', response.accessToken);
       setUser(response.user);
     } catch (error: any) {
       setError(error.message || 'Signup failed');
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiService.googleAuth(token);
       
       // Store token
-      localStorage.setItem('builderspace_token', response.accessToken);
+      localStorage.setItem('kaivan_token', response.accessToken);
       setUser(response.user);
     } catch (error: any) {
       setError(error.message || 'Google login failed');
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
-      localStorage.removeItem('builderspace_token');
+      localStorage.removeItem('kaivan_token');
     }
   };
 

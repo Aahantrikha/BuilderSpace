@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/context/AuthContext';
 import { apiService } from '@/services/api';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 export function WorkspaceDetail() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { subscribe } = useWebSocket();
   const [workspace, setWorkspace] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'links' | 'tasks' | 'members'>('chat');
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,48 @@ export function WorkspaceDetail() {
       loadWorkspaceData();
     }
   }, [workspaceId]);
+
+  // Subscribe to WebSocket messages for real-time updates
+  useEffect(() => {
+    if (!workspaceId) return;
+
+    console.log('[WorkspaceDetail] Setting up WebSocket subscription for workspace:', workspaceId);
+
+    const unsubscribe = subscribe((data: any) => {
+      console.log('[WorkspaceDetail] Received WebSocket message:', data);
+      
+      // Handle group messages for this workspace
+      if (data.type === 'group_message' && data.payload?.spaceId === workspaceId) {
+        console.log('[WorkspaceDetail] Adding new message to chat');
+        setMessages(prev => [...prev, data.payload]);
+      }
+      
+      // Handle task updates
+      if (data.type === 'task_updated' && data.payload?.spaceId === workspaceId) {
+        console.log('[WorkspaceDetail] Updating task:', data.payload);
+        setTasks(prev => prev.map(t => 
+          t.id === data.payload.id ? data.payload : t
+        ));
+      }
+      
+      // Handle task creation
+      if (data.type === 'task_created' && data.payload?.spaceId === workspaceId) {
+        console.log('[WorkspaceDetail] Adding new task');
+        setTasks(prev => [...prev, data.payload]);
+      }
+      
+      // Handle link addition
+      if (data.type === 'link_added' && data.payload?.spaceId === workspaceId) {
+        console.log('[WorkspaceDetail] Adding new link');
+        setLinks(prev => [...prev, data.payload]);
+      }
+    });
+
+    return () => {
+      console.log('[WorkspaceDetail] Cleaning up WebSocket subscription');
+      unsubscribe();
+    };
+  }, [workspaceId, subscribe]);
 
   const loadWorkspaceData = async () => {
     try {
@@ -116,9 +160,12 @@ export function WorkspaceDetail() {
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
+      console.log('[WorkspaceDetail] Toggling task:', taskId, 'from', completed, 'to', !completed);
       const response = await apiService.updateWorkspaceTask(workspaceId!, taskId, { completed: !completed });
+      console.log('[WorkspaceDetail] Task update response:', response);
       // Update the task in the list with the response data
       setTasks(tasks.map(t => t.id === taskId ? response.task : t));
+      console.log('[WorkspaceDetail] Updated tasks state');
     } catch (error) {
       console.error('Failed to update task:', error);
     }
@@ -213,13 +260,34 @@ export function WorkspaceDetail() {
                   )}
                 </div>
               </div>
-              <Button
-                onClick={() => setShowInvite(true)}
-                className="bg-white text-black hover:bg-white/90 rounded-full"
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Invite
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowInvite(true)}
+                  className="bg-white text-black hover:bg-white/90 rounded-full"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Invite
+                </Button>
+                {isFounder && (
+                  <Button
+                    variant="ghost"
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to delete this workspace? This will delete all messages, tasks, and links. This action cannot be undone.')) {
+                        try {
+                          await apiService.deleteWorkspace(workspaceId!);
+                          navigate('/workspaces');
+                        } catch (error: any) {
+                          console.error('Failed to delete workspace:', error);
+                          alert(error.message || 'Failed to delete workspace');
+                        }
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full"
+                  >
+                    Delete Workspace
+                  </Button>
+                )}
+              </div>
             </div>
           </motion.div>
 

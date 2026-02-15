@@ -6,6 +6,7 @@ import { groupChatService } from '../services/GroupChatService.js';
 import { sharedLinkService } from '../services/SharedLinkService.js';
 import { taskService } from '../services/TaskService.js';
 import { eq, and } from 'drizzle-orm';
+import { db, teamSpaces, teamMembers, spaceLinks, spaceTasks, spaceMessages, startups, hackathons } from '../db/index.js';
 
 const router = Router();
 
@@ -497,6 +498,53 @@ router.delete('/:id/tasks/:taskId', authenticateToken, async (req: AuthRequest, 
     if (error.message.includes('not authorized')) {
       return res.status(403).json({ error: error.message });
     }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete entire Builder Space (only by founder)
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    // Check if user is the founder
+    const space = await db.query.teamSpaces.findFirst({
+      where: eq(teamSpaces.id, id),
+    });
+
+    if (!space) {
+      return res.status(404).json({ error: 'Workspace not found' });
+    }
+
+    // Get the founder ID from the associated post
+    let founderId: string | null = null;
+    if (space.postType === 'startup') {
+      const startup = await db.query.startups.findFirst({
+        where: eq(startups.id, space.postId),
+      });
+      founderId = startup?.founderId || null;
+    } else if (space.postType === 'hackathon') {
+      const hackathon = await db.query.hackathons.findFirst({
+        where: eq(hackathons.id, space.postId),
+      });
+      founderId = hackathon?.creatorId || null;
+    }
+
+    if (founderId !== userId) {
+      return res.status(403).json({ error: 'Only the founder can delete this workspace' });
+    }
+
+    // Delete all related data
+    await db.delete(teamMembers).where(eq(teamMembers.teamSpaceId, id));
+    await db.delete(spaceLinks).where(eq(spaceLinks.spaceId, id));
+    await db.delete(spaceTasks).where(eq(spaceTasks.spaceId, id));
+    await db.delete(spaceMessages).where(eq(spaceMessages.spaceId, id));
+    await db.delete(teamSpaces).where(eq(teamSpaces.id, id));
+
+    res.json({ message: 'Workspace deleted successfully' });
+  } catch (error: any) {
+    console.error('Delete workspace error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ error: 'Internal server error' });
   }
 });

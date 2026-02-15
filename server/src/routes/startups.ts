@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db, startups, users, applications, insertStartupSchema, teamSpaces, teamMembers } from '../db/index.js';
 import { eq, desc, ilike, or, and } from 'drizzle-orm';
 import { authenticateToken, AuthRequest, optionalAuth } from '../middleware/auth.js';
+import { broadcastStatsUpdate } from '../utils/statsHelper.js';
 
 const router = Router();
 
@@ -204,6 +205,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         role: 'founder',
         joinedAt: new Date(),
       });
+
+    // Broadcast stats update
+    broadcastStatsUpdate();
 
     res.status(201).json({
       message: 'Startup created successfully',

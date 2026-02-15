@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/context/AuthContext';
 import { apiService } from '@/services/api';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Message {
   id: string;
@@ -48,6 +49,7 @@ export function ScreeningChat() {
   const { chatId } = useParams<{ chatId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { subscribe } = useWebSocket();
   const [chat, setChat] = useState<ScreeningChat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -60,6 +62,22 @@ export function ScreeningChat() {
       loadChatData();
     }
   }, [chatId]);
+
+  // Subscribe to WebSocket messages for real-time updates
+  useEffect(() => {
+    if (!chatId) return;
+
+    const unsubscribe = subscribe((data: any) => {
+      // Handle screening messages for this chat
+      if (data.type === 'screening_message' && data.payload?.chatId === chatId) {
+        setMessages(prev => [...prev, data.payload]);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [chatId, subscribe]);
 
   useEffect(() => {
     scrollToBottom();

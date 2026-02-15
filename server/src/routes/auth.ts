@@ -6,6 +6,7 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateTokens } from '../utils/jwt.js';
 import { verifyGoogleToken, getGoogleAuthUrl } from '../utils/google-auth.js';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { broadcastStatsUpdate } from '../utils/statsHelper.js';
 
 const router = Router();
 
@@ -72,6 +73,9 @@ router.post('/signup', async (req, res) => {
       sameSite: 'strict',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
+
+    // Broadcast stats update to all connected users
+    broadcastStatsUpdate();
 
     res.status(201).json({
       message: 'Account created successfully',
@@ -178,6 +182,9 @@ router.post('/google', async (req, res) => {
         .returning();
 
       user = newUser;
+      
+      // Broadcast stats update for new user
+      broadcastStatsUpdate();
     } else {
       // Update existing user with Google info if not set
       if (!user[0].googleId) {

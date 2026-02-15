@@ -1,7 +1,7 @@
 {
-  "name": "builderspace-backend",
+  "name": "codejam-backend",
   "version": "1.0.0",
-  "description": "Backend API for BuilderSpace - Student collaboration platform",
+  "description": "Backend API for CodeJam - Student collaboration platform",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {

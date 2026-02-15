@@ -36,6 +36,9 @@ export enum MessageType {
   // User status
   USER_ONLINE = 'user_online',
   USER_OFFLINE = 'user_offline',
+  
+  // Platform stats
+  STATS_UPDATE = 'stats_update',
 }
 
 /**
@@ -521,6 +524,24 @@ export class MessageBroadcastService {
   getQueuedMessageCount(userId: string): number {
     const queue = this.messageQueue.get(userId);
     return queue ? queue.length : 0;
+  }
+
+  /**
+   * Broadcast platform statistics update to all connected users
+   * 
+   * @param stats - Platform statistics
+   */
+  broadcastStatsUpdate(stats: { users: number; startups: number; hackathons: number; applications: number }): void {
+    const message: BroadcastMessage = {
+      type: MessageType.STATS_UPDATE,
+      payload: stats,
+      timestamp: new Date(),
+    };
+
+    // Broadcast to all connected users
+    const onlineUsers = this.getOnlineUsers();
+    this.broadcastToUsers(onlineUsers, message);
+    console.log(`📊 Broadcast stats update to ${onlineUsers.length} users`);
   }
 
   /**

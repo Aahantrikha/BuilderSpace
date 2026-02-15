@@ -35,6 +35,7 @@ export const startups = sqliteTable('startups', {
   founderId: text('founder_id').references(() => users.id).notNull(),
   name: text('name').notNull(),
   description: text('description').notNull(),
+  logo: text('logo'),
   stage: text('stage').notNull(), // 'Idea', 'Prototype', 'Launched'
   skillsNeeded: text('skills_needed', { mode: 'json' }).$type<string[]>().default([]),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
@@ -47,9 +48,23 @@ export const hackathons = sqliteTable('hackathons', {
   creatorId: text('creator_id').references(() => users.id).notNull(),
   name: text('name').notNull(),
   description: text('description').notNull(),
+  logo: text('logo'),
   teamSize: integer('team_size').notNull(),
   deadline: integer('deadline', { mode: 'timestamp' }).notNull(),
   skillsNeeded: text('skills_needed', { mode: 'json' }).$type<string[]>().default([]),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
+// Learning Partners table
+export const learningPartners = sqliteTable('learning_partners', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  creatorId: text('creator_id').references(() => users.id).notNull(),
+  topic: text('topic').notNull(), // e.g., "DSA", "System Design", "React"
+  description: text('description').notNull(),
+  goal: text('goal').notNull(), // What they want to achieve
+  duration: text('duration'), // e.g., "2 months", "Until interview"
+  commitment: text('commitment'), // e.g., "2 hours/day", "Weekends only"
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
@@ -58,8 +73,8 @@ export const hackathons = sqliteTable('hackathons', {
 export const applications = sqliteTable('applications', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   applicantId: text('applicant_id').references(() => users.id).notNull(),
-  postType: text('post_type').notNull(), // 'startup' | 'hackathon'
-  postId: text('post_id').notNull(), // references startups.id or hackathons.id
+  postType: text('post_type').notNull(), // 'startup' | 'hackathon' | 'learning_partner'
+  postId: text('post_id').notNull(), // references startups.id or hackathons.id or learning_partners.id
   message: text('message').notNull(),
   status: text('status').default('pending'), // 'pending', 'accepted', 'rejected'
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),

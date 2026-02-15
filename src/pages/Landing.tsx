@@ -44,13 +44,13 @@ const features = [
 
 const testimonials = [
   {
-    quote: "BuilderSpace helped me find my co-founder. We're now building something amazing together.",
+    quote: "CodeJam helped me find my co-founder. We're now building something amazing together.",
     author: 'Alex Chen',
     role: 'CS Student, Stanford',
     company: 'StudySync',
   },
   {
-    quote: 'I joined a hackathon team through BuilderSpace and we won first place!',
+    quote: 'I joined a hackathon team through CodeJam and we won first place!',
     author: 'Maya Patel',
     role: 'Engineering Student, MIT',
     company: 'GreenTech Hackathon',
@@ -101,7 +101,7 @@ export function Landing() {
             <motion.div variants={fadeInUp} className="mb-4 sm:mb-6">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 text-xs sm:text-sm text-white/70">
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                BuilderSpace is live
+                CodeJam is live
               </span>
             </motion.div>
 
@@ -211,7 +211,8 @@ export function Landing() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="group bg-card border border-border rounded-xl p-6 sm:p-8 hover:border-border-hover transition-all duration-300"
+                className="group bg-black/30 backdrop-blur-md border border-white/10 rounded-xl p-6 sm:p-8 hover:border-white/20 transition-all duration-300"
+                style={{ backdropFilter: 'blur(12px) saturate(180%)' }}
               >
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-white/15 transition-colors">
                   <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -313,7 +314,7 @@ export function Landing() {
               Loved by builders worldwide
             </h2>
             <p className="text-base sm:text-lg text-white/60 px-4">
-              Hear from students who found their team on BuilderSpace.
+              Hear from students who found their team on CodeJam.
             </p>
           </motion.div>
 

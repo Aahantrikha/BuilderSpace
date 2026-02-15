@@ -28,6 +28,7 @@ export function CreatePost() {
   const [startupForm, setStartupForm] = useState({
     name: '',
     description: '',
+    logo: 'https://api.dicebear.com/7.x/shapes/svg?seed=startup',
     stage: 'Idea' as 'Idea' | 'Prototype' | 'Launched',
     skills: [] as string[],
   });
@@ -36,6 +37,7 @@ export function CreatePost() {
   const [hackathonForm, setHackathonForm] = useState({
     name: '',
     description: '',
+    logo: 'https://api.dicebear.com/7.x/shapes/svg?seed=hackathon',
     teamSize: 4,
     deadline: undefined as Date | undefined,
     skills: [] as string[],
@@ -68,6 +70,7 @@ export function CreatePost() {
         await apiService.createStartup({
           name: startupForm.name,
           description: startupForm.description,
+          logo: startupForm.logo,
           stage: startupForm.stage,
           skillsNeeded: startupForm.skills,
         });
@@ -76,6 +79,7 @@ export function CreatePost() {
         await apiService.createHackathon({
           name: hackathonForm.name,
           description: hackathonForm.description,
+          logo: hackathonForm.logo,
           teamSize: hackathonForm.teamSize,
           deadline: hackathonForm.deadline!,
           skillsNeeded: hackathonForm.skills,
@@ -182,12 +186,29 @@ export function CreatePost() {
                     <Label className="text-white/70 mb-2 block">Startup Name</Label>
                     <Input
                       value={startupForm.name}
-                      onChange={(e) =>
-                        setStartupForm((prev) => ({ ...prev, name: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setStartupForm((prev) => ({ 
+                          ...prev, 
+                          name,
+                          logo: `https://api.dicebear.com/7.x/shapes/svg?seed=${name || 'startup'}`
+                        }));
+                      }}
                       placeholder="e.g., StudySync"
                       className="bg-background border-border text-white placeholder:text-white/30"
                     />
+                  </div>
+
+                  <div>
+                    <Label className="text-white/70 mb-2 block">Logo</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white/20 flex-shrink-0">
+                        <img src={startupForm.logo} alt="Logo preview" className="w-full h-full" />
+                      </div>
+                      <p className="text-sm text-white/50">
+                        Logo is automatically generated based on your startup name
+                      </p>
+                    </div>
                   </div>
 
                   <div>
@@ -258,12 +279,29 @@ export function CreatePost() {
                     <Label className="text-white/70 mb-2 block">Hackathon/Event Name</Label>
                     <Input
                       value={hackathonForm.name}
-                      onChange={(e) =>
-                        setHackathonForm((prev) => ({ ...prev, name: e.target.value }))
-                      }
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setHackathonForm((prev) => ({ 
+                          ...prev, 
+                          name,
+                          logo: `https://api.dicebear.com/7.x/shapes/svg?seed=${name || 'hackathon'}`
+                        }));
+                      }}
                       placeholder="e.g., AI for Climate Change Hackathon"
                       className="bg-background border-border text-white placeholder:text-white/30"
                     />
+                  </div>
+
+                  <div>
+                    <Label className="text-white/70 mb-2 block">Logo</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white/20 flex-shrink-0">
+                        <img src={hackathonForm.logo} alt="Logo preview" className="w-full h-full" />
+                      </div>
+                      <p className="text-sm text-white/50">
+                        Logo is automatically generated based on your hackathon name
+                      </p>
+                    </div>
                   </div>
 
                   <div>
