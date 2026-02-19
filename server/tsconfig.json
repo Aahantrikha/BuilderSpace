@@ -20,14 +20,5 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/tests/**",
-    "src/services/StateSyncService.ts",
-    "src/services/TaskNotificationService.ts",
-    "src/services/TaskService.ts"
-  ]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/tests/**", "**/*.bak"]
 }
