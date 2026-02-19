@@ -8,6 +8,11 @@ export interface AuthRequest extends Request {
     email: string;
     name: string;
   };
+  // Explicitly include Express Request properties
+  headers: any;
+  params: any;
+  query: any;
+  body: any;
 }
 
 export const authenticateToken = async (
