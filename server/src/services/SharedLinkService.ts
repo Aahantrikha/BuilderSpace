@@ -1,12 +1,12 @@
 // Stub file - actual implementation in SharedLinkService.ts.bak
 export class SharedLinkService {
-  async createLink() {
+  async addSharedLink(data: any) {
     throw new Error('SharedLinkService not implemented');
   }
-  async getLinks() {
+  async getSharedLinks(spaceId: string, userId: string) {
     throw new Error('SharedLinkService not implemented');
   }
-  async deleteLink() {
+  async removeSharedLink(linkId: string, userId: string) {
     throw new Error('SharedLinkService not implemented');
   }
 }

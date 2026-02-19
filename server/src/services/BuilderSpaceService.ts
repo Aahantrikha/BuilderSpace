@@ -82,7 +82,7 @@ export class BuilderSpaceService {
     const isAuthorized = await this.validateTeamMemberAccess(
       userId,
       space.postType as 'startup' | 'hackathon',
-      space.postId
+      space.postId.toString()
     );
 
     if (!isAuthorized) {
@@ -201,7 +201,7 @@ export class BuilderSpaceService {
     for (const membership of memberships) {
       const space = await this.getBuilderSpaceByPost(
         membership.postType as 'startup' | 'hackathon',
-        membership.postId
+        membership.postId.toString()
       );
       if (space) {
         spaces.push(space);

@@ -84,7 +84,7 @@ export class GroupChatService {
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       senderId,
       space.postType as 'startup' | 'hackathon',
-      space.postId
+      space.postId.toString()
     );
 
     if (!isAuthorized) {
@@ -154,7 +154,7 @@ export class GroupChatService {
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
       space.postType as 'startup' | 'hackathon',
-      space.postId
+      space.postId.toString()
     );
 
     if (!isAuthorized) {
@@ -199,7 +199,7 @@ export class GroupChatService {
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
       space.postType as 'startup' | 'hackathon',
-      space.postId
+      space.postId.toString()
     );
 
     if (!isAuthorized) {
@@ -219,7 +219,7 @@ export class GroupChatService {
 
     return {
       id: message.id || (message as any)._id.toString(),
-      spaceId: message.spaceId,
+      spaceId: message.spaceId.toString(),
       senderId: (message.senderId as any)?._id?.toString() || message.senderId,
       senderName: (message.senderId as any)?.name || 'Unknown User',
       content: message.content,
@@ -249,7 +249,7 @@ export class GroupChatService {
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
       space.postType as 'startup' | 'hackathon',
-      space.postId
+      space.postId.toString()
     );
 
     if (!isAuthorized) {

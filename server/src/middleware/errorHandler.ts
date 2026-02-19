@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { db } from '../db/index.js';
 
 /**
  * Custom error class for application errors

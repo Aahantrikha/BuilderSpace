@@ -197,7 +197,7 @@ export class ScreeningMessageService {
 
     return {
       id: message.id || (message as any)._id.toString(),
-      applicationId: message.applicationId,
+      applicationId: message.applicationId.toString(),
       senderId: (message.senderId as any)?._id?.toString() || message.senderId,
       senderName: (message.senderId as any)?.name || 'Unknown User',
       content: message.content,

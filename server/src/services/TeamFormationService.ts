@@ -92,14 +92,14 @@ export class TeamFormationService {
     const teamMember = await this.createTeamMember(
       application.applicantId.toString(),
       application.postType as 'startup' | 'hackathon',
-      application.postId,
+      application.postId.toString(),
       'member'
     );
 
     // Ensure Builder Space exists (create if needed)
     const { space, isNew } = await this.ensureBuilderSpace(
       application.postType as 'startup' | 'hackathon',
-      application.postId,
+      application.postId.toString(),
       postName
     );
 
@@ -222,7 +222,12 @@ export class TeamFormationService {
       postId
     }).lean();
 
-    return members as TeamMemberDetails[];
+    return members.map((m: any) => ({
+      ...m,
+      id: m._id.toString(),
+      userId: m.userId.toString(),
+      postId: m.postId.toString(),
+    })) as TeamMemberDetails[];
   }
 
   /**
@@ -278,7 +283,7 @@ export class TeamFormationService {
     }
 
     // Check if user is a team member
-    return this.isTeamMember(userId, space.postType as 'startup' | 'hackathon', space.postId);
+    return this.isTeamMember(userId, space.postType as 'startup' | 'hackathon', space.postId.toString());
   }
 }
 

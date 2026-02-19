@@ -38,7 +38,7 @@ export const validateGroupChatAccess = async (
     const isAuthorized = await builderSpaceService.validateTeamMemberAccess(
       req.user.id,
       space.postType as 'startup' | 'hackathon',
-      space.postId
+      space.postId.toString()
     );
 
     if (!isAuthorized) {

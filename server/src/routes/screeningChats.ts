@@ -33,8 +33,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     const screeningChat = await screeningChatService.createScreeningChat(
-      applicationId,
-      req.user!.id
+      applicationId
     );
 
     res.status(201).json({ screeningChat });
