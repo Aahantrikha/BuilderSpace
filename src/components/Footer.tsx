@@ -19,9 +19,9 @@ export function Footer() {
   };
 
   const socialLinks = [
-    { name: 'Twitter', icon: Twitter, href: '#' },
+    { name: 'Twitter', icon: Twitter, href: 'https://x.com/Codejamclub' },
     { name: 'GitHub', icon: Github, href: '#' },
-    { name: 'LinkedIn', icon: Linkedin, href: '#' },
+    { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/in/codejam-club-5454a23b1?utm_source=share_via&utm_content=profile&utm_medium=member_android' },
   ];
 
   return (

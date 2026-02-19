@@ -45,19 +45,19 @@ const features = [
 const testimonials = [
   {
     quote: "CodeJam helped me find my co-founder. We're now building something amazing together.",
-    author: 'Alex Chen',
+    author: 'Yugal Lohani',
     role: 'CS Student, Stanford',
     company: 'StudySync',
   },
   {
     quote: 'I joined a hackathon team through CodeJam and we won first place!',
-    author: 'Maya Patel',
+    author: 'Ayush Rawat',
     role: 'Engineering Student, MIT',
     company: 'GreenTech Hackathon',
   },
   {
     quote: 'The quality of builders on this platform is incredible. Everyone is so motivated.',
-    author: 'David Kim',
+    author: 'Alex',
     role: 'Design Student, RISD',
     company: 'CampusCart',
   },

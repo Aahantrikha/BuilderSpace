@@ -25,11 +25,8 @@ export function Navbar() {
   }, [location.pathname]);
 
   const publicNavLinks = [
-    { name: 'Product', href: '#features' },
-    { name: 'Teams', href: '#how-it-works' },
-    { name: 'Resources', href: '#resources' },
     { name: 'Community', href: '/auth' },
-    { name: 'Support', href: 'mailto:support@codejam.com' },
+    { name: 'Support', href: 'mailto:support@codejam.space' },
   ];
 
   const privateNavLinks = [
