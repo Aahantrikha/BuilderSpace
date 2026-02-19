@@ -6,6 +6,9 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 
+// Import database connection
+import { connectDB } from './db/connection.js';
+
 // Import routes
 import authRoutes from './routes/auth.js';
 import startupRoutes from './routes/startups.js';
@@ -21,6 +24,16 @@ import { messageBroadcastService } from './services/MessageBroadcastService.js';
 
 // Load environment variables
 dotenv.config({ path: '.env' });
+
+// Connect to MongoDB (continue even if it fails for local development)
+try {
+  await connectDB();
+  console.log('✅ MongoDB connected - all features available');
+} catch (error) {
+  console.warn('⚠️  MongoDB connection failed - server will run in limited mode');
+  console.warn('   Some features may not work without database connection');
+  console.warn('   Error:', error instanceof Error ? error.message : 'Unknown error');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;

@@ -1,6 +1,4 @@
-import { db as defaultDb, applications, teamMembers, teamSpaces, users, startups, hackathons } from '../db/index.js';
-import { eq, and } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { Application, TeamMember, TeamSpace, User, Startup, Hackathon } from '../db/index.js';
 
 export interface TeamMemberDetails {
   id: string;
@@ -30,12 +28,6 @@ export interface InviteResult {
 }
 
 export class TeamFormationService {
-  private db: BetterSQLite3Database<any>;
-
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-  }
-
   /**
    * Invite an applicant to become an official team member
    * This creates a team membership and ensures a Builder Space exists
@@ -47,17 +39,13 @@ export class TeamFormationService {
    */
   async inviteToBuilderSpace(applicationId: string, founderId: string): Promise<InviteResult> {
     // Get application details
-    const application = await this.db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, applicationId))
-      .limit(1);
+    const application = await Application.findById(applicationId);
 
-    if (!application.length) {
+    if (!application) {
       throw new Error('Application not found');
     }
 
-    if (application[0].status !== 'accepted') {
+    if (application.status !== 'accepted') {
       throw new Error('Application must be accepted before inviting to Builder Space');
     }
 
@@ -65,32 +53,24 @@ export class TeamFormationService {
     let actualFounderId: string;
     let postName: string;
 
-    if (application[0].postType === 'startup') {
-      const startup = await this.db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, application[0].postId))
-        .limit(1);
+    if (application.postType === 'startup') {
+      const startup = await Startup.findById(application.postId);
 
-      if (!startup.length) {
+      if (!startup) {
         throw new Error('Startup not found');
       }
 
-      actualFounderId = startup[0].founderId;
-      postName = startup[0].name;
+      actualFounderId = startup.founderId.toString();
+      postName = startup.name;
     } else {
-      const hackathon = await this.db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, application[0].postId))
-        .limit(1);
+      const hackathon = await Hackathon.findById(application.postId);
 
-      if (!hackathon.length) {
+      if (!hackathon) {
         throw new Error('Hackathon not found');
       }
 
-      actualFounderId = hackathon[0].creatorId;
-      postName = hackathon[0].name;
+      actualFounderId = hackathon.creatorId.toString();
+      postName = hackathon.name;
     }
 
     if (founderId !== actualFounderId) {
@@ -98,34 +78,28 @@ export class TeamFormationService {
     }
 
     // Check if applicant is already a team member (duplicate prevention)
-    const existingMember = await this.db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(
-          eq(teamMembers.userId, application[0].applicantId),
-          eq(teamMembers.postType, application[0].postType),
-          eq(teamMembers.postId, application[0].postId)
-        )
-      )
-      .limit(1);
+    const existingMember = await TeamMember.findOne({
+      userId: application.applicantId,
+      postType: application.postType,
+      postId: application.postId
+    });
 
-    if (existingMember.length > 0) {
+    if (existingMember) {
       throw new Error('User is already a team member');
     }
 
     // Create team member
     const teamMember = await this.createTeamMember(
-      application[0].applicantId,
-      application[0].postType as 'startup' | 'hackathon',
-      application[0].postId,
+      application.applicantId.toString(),
+      application.postType as 'startup' | 'hackathon',
+      application.postId,
       'member'
     );
 
     // Ensure Builder Space exists (create if needed)
     const { space, isNew } = await this.ensureBuilderSpace(
-      application[0].postType as 'startup' | 'hackathon',
-      application[0].postId,
+      application.postType as 'startup' | 'hackathon',
+      application.postId,
       postName
     );
 
@@ -153,68 +127,46 @@ export class TeamFormationService {
     role: 'founder' | 'member' = 'member'
   ): Promise<TeamMemberDetails> {
     // Validate user exists
-    const user = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    const user = await User.findById(userId);
 
-    if (!user.length) {
+    if (!user) {
       throw new Error('User not found');
     }
 
     // Validate post exists
     if (postType === 'startup') {
-      const startup = await this.db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, postId))
-        .limit(1);
-
-      if (!startup.length) {
+      const startup = await Startup.findById(postId);
+      if (!startup) {
         throw new Error('Startup not found');
       }
     } else {
-      const hackathon = await this.db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, postId))
-        .limit(1);
-
-      if (!hackathon.length) {
+      const hackathon = await Hackathon.findById(postId);
+      if (!hackathon) {
         throw new Error('Hackathon not found');
       }
     }
 
     // Check for duplicate membership
-    const existingMember = await this.db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(
-          eq(teamMembers.userId, userId),
-          eq(teamMembers.postType, postType),
-          eq(teamMembers.postId, postId)
-        )
-      )
-      .limit(1);
+    const existingMember = await TeamMember.findOne({
+      userId,
+      postType,
+      postId
+    });
 
-    if (existingMember.length > 0) {
+    if (existingMember) {
       throw new Error('User is already a team member');
     }
 
     // Create team member
-    const result = await this.db
-      .insert(teamMembers)
-      .values({
-        userId,
-        postType,
-        postId,
-        role,
-      })
-      .returning();
+    const result = await TeamMember.create({
+      userId,
+      postType,
+      postId,
+      role,
+      joinedAt: new Date(),
+    });
 
-    return result[0];
+    return result.toObject() as TeamMemberDetails;
   }
 
   /**
@@ -231,37 +183,28 @@ export class TeamFormationService {
     postName: string
   ): Promise<{ space: BuilderSpaceDetails; isNew: boolean }> {
     // Check if Builder Space already exists
-    const existingSpace = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(
-        and(
-          eq(teamSpaces.postType, postType),
-          eq(teamSpaces.postId, postId)
-        )
-      )
-      .limit(1);
+    const existingSpace = await TeamSpace.findOne({
+      postType,
+      postId
+    });
 
-    if (existingSpace.length > 0) {
+    if (existingSpace) {
       return {
-        space: existingSpace[0],
+        space: existingSpace.toObject() as BuilderSpaceDetails,
         isNew: false,
       };
     }
 
     // Create new Builder Space
-    const result = await this.db
-      .insert(teamSpaces)
-      .values({
-        postType,
-        postId,
-        name: `${postName} Builder Space`,
-        description: `Collaboration workspace for ${postName}`,
-      })
-      .returning();
+    const result = await TeamSpace.create({
+      postType,
+      postId,
+      name: `${postName} Builder Space`,
+      description: `Collaboration workspace for ${postName}`,
+    });
 
     return {
-      space: result[0],
+      space: result.toObject() as BuilderSpaceDetails,
       isNew: true,
     };
   }
@@ -274,17 +217,12 @@ export class TeamFormationService {
    * @returns Array of team member details
    */
   async getTeamMembers(postType: 'startup' | 'hackathon', postId: string): Promise<TeamMemberDetails[]> {
-    const members = await this.db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(
-          eq(teamMembers.postType, postType),
-          eq(teamMembers.postId, postId)
-        )
-      );
+    const members = await TeamMember.find({
+      postType,
+      postId
+    }).lean();
 
-    return members;
+    return members as TeamMemberDetails[];
   }
 
   /**
@@ -296,19 +234,13 @@ export class TeamFormationService {
    * @returns True if user is a team member, false otherwise
    */
   async isTeamMember(userId: string, postType: 'startup' | 'hackathon', postId: string): Promise<boolean> {
-    const member = await this.db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(
-          eq(teamMembers.userId, userId),
-          eq(teamMembers.postType, postType),
-          eq(teamMembers.postId, postId)
-        )
-      )
-      .limit(1);
+    const member = await TeamMember.findOne({
+      userId,
+      postType,
+      postId
+    });
 
-    return member.length > 0;
+    return !!member;
   }
 
   /**
@@ -322,18 +254,12 @@ export class TeamFormationService {
     postType: 'startup' | 'hackathon',
     postId: string
   ): Promise<BuilderSpaceDetails | null> {
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(
-        and(
-          eq(teamSpaces.postType, postType),
-          eq(teamSpaces.postId, postId)
-        )
-      )
-      .limit(1);
+    const space = await TeamSpace.findOne({
+      postType,
+      postId
+    });
 
-    return space.length > 0 ? space[0] : null;
+    return space ? (space.toObject() as BuilderSpaceDetails) : null;
   }
 
   /**
@@ -345,18 +271,14 @@ export class TeamFormationService {
    */
   async validateBuilderSpaceAccess(userId: string, spaceId: string): Promise<boolean> {
     // Get the space
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       return false;
     }
 
     // Check if user is a team member
-    return this.isTeamMember(userId, space[0].postType as 'startup' | 'hackathon', space[0].postId);
+    return this.isTeamMember(userId, space.postType as 'startup' | 'hackathon', space.postId);
   }
 }
 

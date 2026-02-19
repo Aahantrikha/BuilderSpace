@@ -1,8 +1,7 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import type { Server } from 'http';
-import { db as defaultDb, teamMembers } from '../db/index.js';
-import { eq, and } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { TeamMember, TeamSpace } from '../db/index.js';
+import mongoose from 'mongoose';
 
 /**
  * Message types for WebSocket communication
@@ -85,14 +84,13 @@ export class MessageBroadcastService {
   private wss: WebSocketServer | null = null;
   private connections: Map<string, ConnectionInfo> = new Map();
   private messageQueue: Map<string, QueuedMessage[]> = new Map();
-  private db: BetterSQLite3Database<any>;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
   private readonly MESSAGE_QUEUE_MAX_SIZE = 100; // Max queued messages per user
   private readonly MESSAGE_QUEUE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
 
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
+  constructor() {
+    // No database connection needed - using Mongoose models directly
   }
 
   /**
@@ -427,30 +425,19 @@ export class MessageBroadcastService {
    */
   private async getTeamMembersBySpace(spaceId: string): Promise<string[]> {
     // First, get the space to find postType and postId
-    const { teamSpaces } = await import('../db/index.js');
-    
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       return [];
     }
 
     // Get team members for this post
-    const members = await this.db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(
-          eq(teamMembers.postType, space[0].postType),
-          eq(teamMembers.postId, space[0].postId)
-        )
-      );
+    const members = await TeamMember.find({
+      postType: space.postType,
+      postId: space.postId,
+    });
 
-    return members.map(m => m.userId);
+    return members.map(m => m.userId.toString());
   }
 
   /**
@@ -460,28 +447,18 @@ export class MessageBroadcastService {
    * @returns Array of space IDs
    */
   private async getUserSpaces(userId: string): Promise<string[]> {
-    const { teamSpaces } = await import('../db/index.js');
-    
     // Get all team memberships for this user
-    const memberships = await this.db
-      .select()
-      .from(teamMembers)
-      .where(eq(teamMembers.userId, userId));
+    const memberships = await TeamMember.find({ userId });
 
     // Get corresponding spaces
     const spaceIds: string[] = [];
     for (const membership of memberships) {
-      const spaces = await this.db
-        .select()
-        .from(teamSpaces)
-        .where(
-          and(
-            eq(teamSpaces.postType, membership.postType),
-            eq(teamSpaces.postId, membership.postId)
-          )
-        );
+      const spaces = await TeamSpace.find({
+        postType: membership.postType,
+        postId: membership.postId,
+      });
 
-      spaceIds.push(...spaces.map(s => s.id));
+      spaceIds.push(...spaces.map(s => s._id.toString()));
     }
 
     return spaceIds;

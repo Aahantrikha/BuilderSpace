@@ -1,6 +1,4 @@
-import { db as defaultDb, applications, screeningMessages, users, startups, hackathons } from '../db/index.js';
-import { eq, and, or, ne, desc, sql } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { Application, ScreeningMessage, User, Startup, Hackathon } from '../db/index.js';
 
 export interface ScreeningChatParticipants {
   founderId: string;
@@ -38,11 +36,6 @@ export interface ScreeningChatDetails {
 }
 
 export class ScreeningChatService {
-  private db: BetterSQLite3Database<any>;
-
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-  }
   /**
    * Create a screening chat when an application is accepted
    * This is triggered automatically when a founder accepts an application
@@ -53,17 +46,13 @@ export class ScreeningChatService {
    */
   async createScreeningChat(applicationId: string): Promise<ScreeningChatDetails> {
     // Get application details
-    const application = await this.db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, applicationId))
-      .limit(1);
+    const application = await Application.findById(applicationId);
 
-    if (!application.length) {
+    if (!application) {
       throw new Error('Application not found');
     }
 
-    if (application[0].status !== 'accepted') {
+    if (application.status !== 'accepted') {
       throw new Error('Application must be accepted to create screening chat');
     }
 
@@ -71,47 +60,39 @@ export class ScreeningChatService {
     let founderId: string;
     let postName: string;
 
-    if (application[0].postType === 'startup') {
-      const startup = await this.db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, application[0].postId))
-        .limit(1);
+    if (application.postType === 'startup') {
+      const startup = await Startup.findById(application.postId);
 
-      if (!startup.length) {
+      if (!startup) {
         throw new Error('Startup not found');
       }
 
-      founderId = startup[0].founderId;
-      postName = startup[0].name;
+      founderId = startup.founderId.toString();
+      postName = startup.name;
     } else {
-      const hackathon = await this.db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, application[0].postId))
-        .limit(1);
+      const hackathon = await Hackathon.findById(application.postId);
 
-      if (!hackathon.length) {
+      if (!hackathon) {
         throw new Error('Hackathon not found');
       }
 
-      founderId = hackathon[0].creatorId;
-      postName = hackathon[0].name;
+      founderId = hackathon.creatorId.toString();
+      postName = hackathon.name;
     }
 
     // Return screening chat details
     // Note: The screening chat is implicitly created by the accepted application
     // No separate chat entity is needed - the application itself represents the chat
     return {
-      id: application[0].id,
-      applicationId: application[0].id,
+      id: application.id,
+      applicationId: application.id,
       founderId,
-      applicantId: application[0].applicantId,
-      postType: application[0].postType as 'startup' | 'hackathon',
-      postId: application[0].postId,
+      applicantId: application.applicantId.toString(),
+      postType: application.postType as 'startup' | 'hackathon',
+      postId: application.postId,
       postName,
-      status: application[0].status!,
-      createdAt: application[0].createdAt || new Date(),
+      status: application.status,
+      createdAt: application.createdAt,
     };
   }
 
@@ -126,13 +107,9 @@ export class ScreeningChatService {
    */
   async getScreeningChat(applicationId: string, userId: string): Promise<ScreeningChatDetails> {
     // Get application details
-    const application = await this.db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, applicationId))
-      .limit(1);
+    const application = await Application.findById(applicationId);
 
-    if (!application.length) {
+    if (!application) {
       throw new Error('Screening chat not found');
     }
 
@@ -140,71 +117,63 @@ export class ScreeningChatService {
     let founderId: string;
     let postName: string;
 
-    if (application[0].postType === 'startup') {
-      const startup = await this.db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, application[0].postId))
-        .limit(1);
+    if (application.postType === 'startup') {
+      const startup = await Startup.findById(application.postId);
 
-      if (!startup.length) {
+      if (!startup) {
         throw new Error('Startup not found');
       }
 
-      founderId = startup[0].founderId;
-      postName = startup[0].name;
+      founderId = startup.founderId.toString();
+      postName = startup.name;
     } else {
-      const hackathon = await this.db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, application[0].postId))
-        .limit(1);
+      const hackathon = await Hackathon.findById(application.postId);
 
-      if (!hackathon.length) {
+      if (!hackathon) {
         throw new Error('Hackathon not found');
       }
 
-      founderId = hackathon[0].creatorId;
-      postName = hackathon[0].name;
+      founderId = hackathon.creatorId.toString();
+      postName = hackathon.name;
     }
 
     // Authorization check: only founder and applicant can access
-    if (userId !== founderId && userId !== application[0].applicantId) {
+    if (userId !== founderId && userId !== application.applicantId.toString()) {
       throw new Error('Access denied: You are not authorized to access this screening chat');
     }
 
     // Get founder and applicant details
     const [founderUser, applicantUser] = await Promise.all([
-      this.db.select().from(users).where(eq(users.id, founderId)).limit(1),
-      this.db.select().from(users).where(eq(users.id, application[0].applicantId)).limit(1),
+      User.findById(founderId).lean(),
+      User.findById(application.applicantId).lean(),
     ]);
 
     return {
-      id: application[0].id,
-      applicationId: application[0].id,
+      id: application.id,
+      applicationId: application.id,
       founderId,
-      applicantId: application[0].applicantId,
-      postType: application[0].postType as 'startup' | 'hackathon',
-      postId: application[0].postId,
+      applicantId: application.applicantId.toString(),
+      postType: application.postType as 'startup' | 'hackathon',
+      postId: application.postId,
       postName,
-      status: application[0].status!,
-      createdAt: application[0].createdAt || new Date(),
-      founder: founderUser[0] ? {
-        id: founderUser[0].id,
-        name: founderUser[0].name,
-        email: founderUser[0].email,
-        avatar: founderUser[0].avatar || undefined,
+      status: application.status,
+      createdAt: application.createdAt,
+      founder: founderUser ? {
+        id: founderUser.id,
+        name: founderUser.name,
+        email: founderUser.email,
+        avatar: founderUser.avatar || undefined,
       } : undefined,
-      applicant: applicantUser[0] ? {
-        id: applicantUser[0].id,
-        name: applicantUser[0].name,
-        email: applicantUser[0].email,
-        avatar: applicantUser[0].avatar || undefined,
+      applicant: applicantUser ? {
+        id: applicantUser.id,
+        name: applicantUser.name,
+        email: applicantUser.email,
+        avatar: applicantUser.avatar || undefined,
       } : undefined,
       application: {
         post: {
           name: postName,
-          postType: application[0].postType,
+          postType: application.postType,
         },
       },
     };
@@ -218,140 +187,96 @@ export class ScreeningChatService {
    */
   async getUserScreeningChats(userId: string): Promise<ScreeningChatDetails[]> {
     // Get all accepted applications where user is applicant
-    const applicantApplications = await this.db
-      .select()
-      .from(applications)
-      .where(
-        and(
-          eq(applications.applicantId, userId),
-          eq(applications.status, 'accepted')
-        )
-      );
+    const applicantApplications = await Application.find({
+      applicantId: userId,
+      status: 'accepted'
+    }).lean();
 
     // Get all accepted applications for user's posts (as founder)
-    const userStartups = await this.db
-      .select({ id: startups.id })
-      .from(startups)
-      .where(eq(startups.founderId, userId));
+    const userStartups = await Startup.find({ founderId: userId }).select('id').lean();
+    const userHackathons = await Hackathon.find({ creatorId: userId }).select('id').lean();
 
-    const userHackathons = await this.db
-      .select({ id: hackathons.id })
-      .from(hackathons)
-      .where(eq(hackathons.creatorId, userId));
+    const startupIds = userStartups.map(s => s.id);
+    const hackathonIds = userHackathons.map(h => h.id);
 
-    const startupIds = userStartups.map((s: any) => s.id);
-    const hackathonIds = userHackathons.map((h: any) => h.id);
-
-    let founderApplications: typeof applicantApplications = [];
+    let founderApplications: any[] = [];
 
     if (startupIds.length > 0 || hackathonIds.length > 0) {
       const conditions = [];
       if (startupIds.length > 0) {
-        conditions.push(
-          and(
-            eq(applications.postType, 'startup'),
-            or(...startupIds.map((id: any) => eq(applications.postId, id)))
-          )
-        );
+        conditions.push({ postType: 'startup', postId: { $in: startupIds } });
       }
       if (hackathonIds.length > 0) {
-        conditions.push(
-          and(
-            eq(applications.postType, 'hackathon'),
-            or(...hackathonIds.map((id: any) => eq(applications.postId, id)))
-          )
-        );
+        conditions.push({ postType: 'hackathon', postId: { $in: hackathonIds } });
       }
 
-      founderApplications = await this.db
-        .select()
-        .from(applications)
-        .where(
-          and(
-            eq(applications.status, 'accepted'),
-            or(...conditions)
-          )
-        );
+      founderApplications = await Application.find({
+        status: 'accepted',
+        $or: conditions
+      }).lean();
     }
 
     // Combine and deduplicate
     const allApplications = [...applicantApplications, ...founderApplications];
     const uniqueApplications = Array.from(
-      new Map(allApplications.map(app => [app.id, app])).values()
+      new Map(allApplications.map(app => [app.id || app._id.toString(), app])).values()
     );
 
     // Convert to screening chat details
     const screeningChats = await Promise.all(
-      uniqueApplications.map(async (app) => {
+      uniqueApplications.map(async (app: any) => {
         let founderId: string;
         let postName: string;
 
         if (app.postType === 'startup') {
-          const startup = await this.db
-            .select()
-            .from(startups)
-            .where(eq(startups.id, app.postId))
-            .limit(1);
-
-          founderId = startup[0]?.founderId || '';
-          postName = startup[0]?.name || '';
+          const startup = await Startup.findById(app.postId).lean();
+          founderId = startup?.founderId?.toString() || '';
+          postName = startup?.name || '';
         } else {
-          const hackathon = await this.db
-            .select()
-            .from(hackathons)
-            .where(eq(hackathons.id, app.postId))
-            .limit(1);
-
-          founderId = hackathon[0]?.creatorId || '';
-          postName = hackathon[0]?.name || '';
+          const hackathon = await Hackathon.findById(app.postId).lean();
+          founderId = hackathon?.creatorId?.toString() || '';
+          postName = hackathon?.name || '';
         }
 
         // Get founder and applicant details
         const [founderUser, applicantUser] = await Promise.all([
-          this.db.select().from(users).where(eq(users.id, founderId)).limit(1),
-          this.db.select().from(users).where(eq(users.id, app.applicantId)).limit(1),
+          User.findById(founderId).lean(),
+          User.findById(app.applicantId).lean(),
         ]);
 
         // Get last message for this chat
-        const lastMessage = await this.db
-          .select()
-          .from(screeningMessages)
-          .where(eq(screeningMessages.chatId, app.id))
-          .orderBy(sql`${screeningMessages.createdAt} DESC`)
-          .limit(1);
+        const lastMessage = await ScreeningMessage.findOne({ chatId: app.id || app._id })
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .lean();
 
-        // Get unread message count (messages sent by the other person that were created after user last viewed)
-        const unreadMessages = await this.db
-          .select()
-          .from(screeningMessages)
-          .where(
-            and(
-              eq(screeningMessages.chatId, app.id),
-              ne(screeningMessages.senderId, userId) // Messages from the other person
-            )
-          );
+        // Get unread message count (messages sent by the other person)
+        const unreadCount = await ScreeningMessage.countDocuments({
+          chatId: app.id || app._id,
+          senderId: { $ne: userId }
+        });
 
         return {
-          id: app.id,
-          applicationId: app.id,
+          id: app.id || app._id.toString(),
+          applicationId: app.id || app._id.toString(),
           founderId,
-          applicantId: app.applicantId,
+          applicantId: app.applicantId?.toString() || '',
           postType: app.postType as 'startup' | 'hackathon',
           postId: app.postId,
           postName,
-          status: app.status!,
+          status: app.status,
           createdAt: app.createdAt || new Date(),
-          founder: founderUser[0] ? {
-            id: founderUser[0].id,
-            name: founderUser[0].name,
-            email: founderUser[0].email,
-            avatar: founderUser[0].avatar || undefined,
+          founder: founderUser ? {
+            id: founderUser.id,
+            name: founderUser.name,
+            email: founderUser.email,
+            avatar: founderUser.avatar || undefined,
           } : undefined,
-          applicant: applicantUser[0] ? {
-            id: applicantUser[0].id,
-            name: applicantUser[0].name,
-            email: applicantUser[0].email,
-            avatar: applicantUser[0].avatar || undefined,
+          applicant: applicantUser ? {
+            id: applicantUser.id,
+            name: applicantUser.name,
+            email: applicantUser.email,
+            avatar: applicantUser.avatar || undefined,
           } : undefined,
           application: {
             post: {
@@ -359,12 +284,12 @@ export class ScreeningChatService {
               postType: app.postType,
             },
           },
-          lastMessage: lastMessage[0] ? {
-            content: lastMessage[0].content,
-            createdAt: lastMessage[0].createdAt,
-            senderId: lastMessage[0].senderId,
+          lastMessage: lastMessage ? {
+            content: lastMessage.content,
+            createdAt: lastMessage.createdAt,
+            senderId: lastMessage.senderId,
           } : undefined,
-          unreadCount: unreadMessages.length,
+          unreadCount,
         };
       })
     );

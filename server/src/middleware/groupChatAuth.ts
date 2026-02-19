@@ -1,9 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth.js';
 import { builderSpaceService } from '../services/BuilderSpaceService.js';
-import { teamSpaces } from '../db/index.js';
-import { db } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { TeamSpace } from '../db/index.js';
 
 /**
  * Middleware to validate Builder Space group chat access
@@ -30,21 +28,17 @@ export const validateGroupChatAccess = async (
     }
 
     // Get the space to validate it exists and get post info
-    const space = await db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       return res.status(404).json({ error: 'Builder Space not found' });
     }
 
     // Validate user is a team member
     const isAuthorized = await builderSpaceService.validateTeamMemberAccess(
       req.user.id,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -54,7 +48,7 @@ export const validateGroupChatAccess = async (
     }
 
     // Attach space info to request for use in route handlers
-    (req as any).builderSpace = space[0];
+    (req as any).builderSpace = space;
 
     next();
   } catch (error: any) {

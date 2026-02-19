@@ -1,6 +1,4 @@
-import { db as defaultDb, screeningMessages, applications, users } from '../db/index.js';
-import { eq, and, desc } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { ScreeningMessage, Application, User } from '../db/index.js';
 import { ScreeningChatService } from './ScreeningChatService.js';
 import { messageBroadcastService, MessageType } from './MessageBroadcastService.js';
 import DOMPurify from 'isomorphic-dompurify';
@@ -22,12 +20,10 @@ export interface SendMessageParams {
 }
 
 export class ScreeningMessageService {
-  private db: BetterSQLite3Database<any>;
   private screeningChatService: ScreeningChatService;
 
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-    this.screeningChatService = new ScreeningChatService(this.db);
+  constructor() {
+    this.screeningChatService = new ScreeningChatService();
   }
 
   /**
@@ -91,37 +87,27 @@ export class ScreeningMessageService {
     const sanitizedContent = this.validateAndSanitizeContent(content);
 
     // Get sender information
-    const sender = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, senderId))
-      .limit(1);
+    const sender = await User.findById(senderId);
 
-    if (!sender.length) {
+    if (!sender) {
       throw new Error('Sender not found');
     }
 
     // Create message
-    const now = new Date();
-    const messageId = crypto.randomUUID();
-
-    await this.db.insert(screeningMessages).values({
-      id: messageId,
+    const message = await ScreeningMessage.create({
       applicationId,
       senderId,
       content: sanitizedContent,
-      createdAt: now,
-      updatedAt: now,
     });
 
-    const message: ScreeningMessage = {
-      id: messageId,
+    const messageData: ScreeningMessage = {
+      id: message.id,
       applicationId,
       senderId,
-      senderName: sender[0].name,
+      senderName: sender.name,
       content: sanitizedContent,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
     };
 
     // Broadcast message to both participants in real-time (excluding sender)
@@ -131,14 +117,14 @@ export class ScreeningMessageService {
       authCheck.participants.applicantId,
       {
         type: MessageType.SCREENING_MESSAGE,
-        payload: message,
-        timestamp: now,
+        payload: messageData,
+        timestamp: message.createdAt,
         senderId,
       },
       senderId // Exclude sender from broadcast
     );
 
-    return message;
+    return messageData;
   }
 
   /**
@@ -162,29 +148,19 @@ export class ScreeningMessageService {
     }
 
     // Get messages with sender information
-    const messages = await this.db
-      .select({
-        id: screeningMessages.id,
-        applicationId: screeningMessages.applicationId,
-        senderId: screeningMessages.senderId,
-        senderName: users.name,
-        content: screeningMessages.content,
-        createdAt: screeningMessages.createdAt,
-        updatedAt: screeningMessages.updatedAt,
-      })
-      .from(screeningMessages)
-      .leftJoin(users, eq(screeningMessages.senderId, users.id))
-      .where(eq(screeningMessages.applicationId, applicationId))
-      .orderBy(screeningMessages.createdAt); // Chronological order (oldest first)
+    const messages = await ScreeningMessage.find({ applicationId })
+      .populate('senderId', 'name')
+      .sort({ createdAt: 1 }) // Chronological order (oldest first)
+      .lean();
 
-    return messages.map(msg => ({
-      id: msg.id,
+    return messages.map((msg: any) => ({
+      id: msg.id || msg._id.toString(),
       applicationId: msg.applicationId,
-      senderId: msg.senderId,
-      senderName: msg.senderName || 'Unknown User',
+      senderId: msg.senderId?._id?.toString() || msg.senderId,
+      senderName: msg.senderId?.name || 'Unknown User',
       content: msg.content,
-      createdAt: msg.createdAt || new Date(),
-      updatedAt: msg.updatedAt || new Date(),
+      createdAt: msg.createdAt,
+      updatedAt: msg.updatedAt,
     }));
   }
 
@@ -209,35 +185,24 @@ export class ScreeningMessageService {
     }
 
     // Get most recent message
-    const messages = await this.db
-      .select({
-        id: screeningMessages.id,
-        applicationId: screeningMessages.applicationId,
-        senderId: screeningMessages.senderId,
-        senderName: users.name,
-        content: screeningMessages.content,
-        createdAt: screeningMessages.createdAt,
-        updatedAt: screeningMessages.updatedAt,
-      })
-      .from(screeningMessages)
-      .leftJoin(users, eq(screeningMessages.senderId, users.id))
-      .where(eq(screeningMessages.applicationId, applicationId))
-      .orderBy(desc(screeningMessages.createdAt))
-      .limit(1);
+    const message = await ScreeningMessage.findOne({ applicationId })
+      .populate('senderId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(1)
+      .lean();
 
-    if (!messages.length) {
+    if (!message) {
       return null;
     }
 
-    const msg = messages[0];
     return {
-      id: msg.id,
-      applicationId: msg.applicationId,
-      senderId: msg.senderId,
-      senderName: msg.senderName || 'Unknown User',
-      content: msg.content,
-      createdAt: msg.createdAt || new Date(),
-      updatedAt: msg.updatedAt || new Date(),
+      id: message.id || (message as any)._id.toString(),
+      applicationId: message.applicationId,
+      senderId: (message.senderId as any)?._id?.toString() || message.senderId,
+      senderName: (message.senderId as any)?.name || 'Unknown User',
+      content: message.content,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
     };
   }
 
@@ -262,12 +227,7 @@ export class ScreeningMessageService {
     }
 
     // Count messages
-    const messages = await this.db
-      .select()
-      .from(screeningMessages)
-      .where(eq(screeningMessages.applicationId, applicationId));
-
-    return messages.length;
+    return await ScreeningMessage.countDocuments({ applicationId });
   }
 }
 

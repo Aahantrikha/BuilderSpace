@@ -5,8 +5,7 @@ import { builderSpaceService } from '../services/BuilderSpaceService.js';
 import { groupChatService } from '../services/GroupChatService.js';
 import { sharedLinkService } from '../services/SharedLinkService.js';
 import { taskService } from '../services/TaskService.js';
-import { eq, and } from 'drizzle-orm';
-import { db, teamSpaces, teamMembers, spaceLinks, spaceTasks, spaceMessages, startups, hackathons } from '../db/index.js';
+import { TeamSpace, TeamMember, User } from '../db/index.js';
 
 const router = Router();
 
@@ -17,22 +16,16 @@ router.get('/my', authenticateToken, async (req: AuthRequest, res) => {
     const spaces = await builderSpaceService.getUserBuilderSpaces(userId);
     
     // Add member count to each space
-    const { db: dbInstance, teamMembers: teamMembersTable } = await import('../db/index.js');
     const spacesWithCount = await Promise.all(
       spaces.map(async (space) => {
-        const members = await dbInstance
-          .select()
-          .from(teamMembersTable)
-          .where(
-            and(
-              eq(teamMembersTable.postType, space.postType),
-              eq(teamMembersTable.postId, space.postId)
-            )
-          );
+        const memberCount = await TeamMember.countDocuments({
+          postType: space.postType,
+          postId: space.postId
+        });
         
         return {
           ...space,
-          memberCount: members.length,
+          memberCount,
         };
       })
     );
@@ -58,70 +51,49 @@ router.post('/:id/invite', authenticateToken, async (req: AuthRequest, res) => {
     const space = await builderSpaceService.getBuilderSpace(id, userId);
 
     // Check if user is founder/creator (only they can invite)
-    const { db: dbInstance, teamMembers: teamMembersTable } = await import('../db/index.js');
-    const membership = await dbInstance
-      .select()
-      .from(teamMembersTable)
-      .where(
-        and(
-          eq(teamMembersTable.userId, userId),
-          eq(teamMembersTable.postType, space.postType),
-          eq(teamMembersTable.postId, space.postId)
-        )
-      )
-      .limit(1);
+    const membership = await TeamMember.findOne({
+      userId,
+      postType: space.postType,
+      postId: space.postId
+    });
 
-    if (!membership.length || membership[0].role !== 'founder') {
+    if (!membership || membership.role !== 'founder') {
       return res.status(403).json({ error: 'Only the founder can invite members' });
     }
 
     // Find user by email
-    const { users: usersTable } = await import('../db/index.js');
-    const invitedUser = await dbInstance
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
-      .limit(1);
+    const invitedUser = await User.findOne({ email });
 
-    if (!invitedUser.length) {
+    if (!invitedUser) {
       return res.status(404).json({ error: 'User not found with this email' });
     }
 
     // Check if already a member
-    const existingMember = await dbInstance
-      .select()
-      .from(teamMembersTable)
-      .where(
-        and(
-          eq(teamMembersTable.userId, invitedUser[0].id),
-          eq(teamMembersTable.postType, space.postType),
-          eq(teamMembersTable.postId, space.postId)
-        )
-      )
-      .limit(1);
+    const existingMember = await TeamMember.findOne({
+      userId: invitedUser.id,
+      postType: space.postType,
+      postId: space.postId
+    });
 
-    if (existingMember.length > 0) {
+    if (existingMember) {
       return res.status(400).json({ error: 'User is already a member of this workspace' });
     }
 
     // Add user to workspace
-    await dbInstance
-      .insert(teamMembersTable)
-      .values({
-        id: crypto.randomUUID(),
-        userId: invitedUser[0].id,
-        postType: space.postType,
-        postId: space.postId,
-        role: 'member',
-        joinedAt: new Date(),
-      });
+    await TeamMember.create({
+      userId: invitedUser.id,
+      postType: space.postType,
+      postId: space.postId,
+      role: 'member',
+      joinedAt: new Date(),
+    });
 
     res.json({
       message: 'User invited successfully',
       user: {
-        id: invitedUser[0].id,
-        name: invitedUser[0].name,
-        email: invitedUser[0].email,
+        id: invitedUser.id,
+        name: invitedUser.name,
+        email: invitedUser.email,
       },
     });
   } catch (error: any) {
@@ -168,30 +140,29 @@ router.get('/:id/members', authenticateToken, async (req: AuthRequest, res) => {
     const space = await builderSpaceService.getBuilderSpace(id, userId);
 
     // Get all members
-    const { db: dbInstance, teamMembers: teamMembersTable, users: usersTable } = await import('../db/index.js');
-    const membersData = await dbInstance
-      .select({
-        userId: teamMembersTable.userId,
-        role: teamMembersTable.role,
-        joinedAt: teamMembersTable.joinedAt,
-        userName: usersTable.name,
-        userEmail: usersTable.email,
-        userAvatar: usersTable.avatar,
-      })
-      .from(teamMembersTable)
-      .leftJoin(usersTable, eq(teamMembersTable.userId, usersTable.id))
-      .where(
-        and(
-          eq(teamMembersTable.postType, space.postType),
-          eq(teamMembersTable.postId, space.postId)
-        )
-      );
+    const membersData = await TeamMember.find({
+      postType: space.postType,
+      postId: space.postId
+    })
+      .populate('userId', 'name email avatar')
+      .lean();
 
     // Check if current user is founder
-    const isFounder = membersData.some(m => m.userId === userId && m.role === 'founder');
+    const isFounder = membersData.some((m: any) => 
+      m.userId._id.toString() === userId && m.role === 'founder'
+    );
+
+    const members = membersData.map((m: any) => ({
+      userId: m.userId._id.toString(),
+      role: m.role,
+      joinedAt: m.joinedAt,
+      userName: m.userId.name,
+      userEmail: m.userId.email,
+      userAvatar: m.userId.avatar,
+    }));
 
     res.json({
-      members: membersData,
+      members,
       isFounder,
     });
   } catch (error: any) {
@@ -210,54 +181,37 @@ router.delete('/:id/members/:memberId', authenticateToken, async (req: AuthReque
     const space = await builderSpaceService.getBuilderSpace(id, userId);
 
     // Check if user is founder
-    const { db: dbInstance, teamMembers: teamMembersTable } = await import('../db/index.js');
-    const membership = await dbInstance
-      .select()
-      .from(teamMembersTable)
-      .where(
-        and(
-          eq(teamMembersTable.userId, userId),
-          eq(teamMembersTable.postType, space.postType),
-          eq(teamMembersTable.postId, space.postId)
-        )
-      )
-      .limit(1);
+    const membership = await TeamMember.findOne({
+      userId,
+      postType: space.postType,
+      postId: space.postId
+    });
 
-    if (!membership.length || membership[0].role !== 'founder') {
+    if (!membership || membership.role !== 'founder') {
       return res.status(403).json({ error: 'Only the founder can remove members' });
     }
 
     // Can't remove founder
-    const targetMember = await dbInstance
-      .select()
-      .from(teamMembersTable)
-      .where(
-        and(
-          eq(teamMembersTable.userId, memberId),
-          eq(teamMembersTable.postType, space.postType),
-          eq(teamMembersTable.postId, space.postId)
-        )
-      )
-      .limit(1);
+    const targetMember = await TeamMember.findOne({
+      userId: memberId,
+      postType: space.postType,
+      postId: space.postId
+    });
 
-    if (!targetMember.length) {
+    if (!targetMember) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    if (targetMember[0].role === 'founder') {
+    if (targetMember.role === 'founder') {
       return res.status(400).json({ error: 'Cannot remove the founder' });
     }
 
     // Remove member
-    await dbInstance
-      .delete(teamMembersTable)
-      .where(
-        and(
-          eq(teamMembersTable.userId, memberId),
-          eq(teamMembersTable.postType, space.postType),
-          eq(teamMembersTable.postId, space.postId)
-        )
-      );
+    await TeamMember.deleteOne({
+      userId: memberId,
+      postType: space.postType,
+      postId: space.postId
+    });
 
     res.json({ message: 'Member removed successfully' });
   } catch (error: any) {
@@ -509,9 +463,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user!.id;
 
     // Check if user is the founder
-    const space = await db.query.teamSpaces.findFirst({
-      where: eq(teamSpaces.id, id),
-    });
+    const space = await TeamSpace.findById(id);
 
     if (!space) {
       return res.status(404).json({ error: 'Workspace not found' });
@@ -520,15 +472,13 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     // Get the founder ID from the associated post
     let founderId: string | null = null;
     if (space.postType === 'startup') {
-      const startup = await db.query.startups.findFirst({
-        where: eq(startups.id, space.postId),
-      });
-      founderId = startup?.founderId || null;
+      const { Startup } = await import('../db/index.js');
+      const startup = await Startup.findById(space.postId);
+      founderId = startup?.founderId?.toString() || null;
     } else if (space.postType === 'hackathon') {
-      const hackathon = await db.query.hackathons.findFirst({
-        where: eq(hackathons.id, space.postId),
-      });
-      founderId = hackathon?.creatorId || null;
+      const { Hackathon } = await import('../db/index.js');
+      const hackathon = await Hackathon.findById(space.postId);
+      founderId = hackathon?.creatorId?.toString() || null;
     }
 
     if (founderId !== userId) {
@@ -536,11 +486,12 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Delete all related data
-    await db.delete(teamMembers).where(eq(teamMembers.teamSpaceId, id));
-    await db.delete(spaceLinks).where(eq(spaceLinks.spaceId, id));
-    await db.delete(spaceTasks).where(eq(spaceTasks.spaceId, id));
-    await db.delete(spaceMessages).where(eq(spaceMessages.spaceId, id));
-    await db.delete(teamSpaces).where(eq(teamSpaces.id, id));
+    const { TeamMember, SpaceLink, SpaceTask, SpaceMessage } = await import('../db/index.js');
+    await TeamMember.deleteMany({ postType: space.postType, postId: space.postId });
+    await SpaceLink.deleteMany({ spaceId: id });
+    await SpaceTask.deleteMany({ spaceId: id });
+    await SpaceMessage.deleteMany({ spaceId: id });
+    await TeamSpace.findByIdAndDelete(id);
 
     res.json({ message: 'Workspace deleted successfully' });
   } catch (error: any) {

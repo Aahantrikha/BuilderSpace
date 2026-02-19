@@ -1,22 +1,22 @@
-import { db } from '../db/index.js';
-import { users, startups, hackathons, applications } from '../db/schema.js';
-import { count } from 'drizzle-orm';
+import { User, Startup, Hackathon, Application } from '../db/index.js';
 import { messageBroadcastService } from '../services/MessageBroadcastService.js';
 
 /**
  * Get current platform statistics
  */
 export async function getStats() {
-  const [usersCount] = await db.select({ count: count() }).from(users);
-  const [startupsCount] = await db.select({ count: count() }).from(startups);
-  const [hackathonsCount] = await db.select({ count: count() }).from(hackathons);
-  const [applicationsCount] = await db.select({ count: count() }).from(applications);
+  const [usersCount, startupsCount, hackathonsCount, applicationsCount] = await Promise.all([
+    User.countDocuments(),
+    Startup.countDocuments(),
+    Hackathon.countDocuments(),
+    Application.countDocuments(),
+  ]);
 
   return {
-    users: usersCount.count,
-    startups: startupsCount.count,
-    hackathons: hackathonsCount.count,
-    applications: applicationsCount.count,
+    users: usersCount,
+    startups: startupsCount,
+    hackathons: hackathonsCount,
+    applications: applicationsCount,
   };
 }
 

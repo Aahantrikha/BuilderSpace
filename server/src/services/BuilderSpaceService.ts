@@ -1,6 +1,4 @@
-import { db as defaultDb, teamSpaces, teamMembers, startups, hackathons } from '../db/index.js';
-import { eq, and } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { TeamSpace, TeamMember, Startup, Hackathon } from '../db/index.js';
 
 export interface BuilderSpaceDetails {
   id: string;
@@ -13,12 +11,6 @@ export interface BuilderSpaceDetails {
 }
 
 export class BuilderSpaceService {
-  private db: BetterSQLite3Database<any>;
-
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-  }
-
   /**
    * Create a Builder Space for a team
    * Validates that only one Builder Space exists per team
@@ -38,55 +30,36 @@ export class BuilderSpaceService {
   ): Promise<BuilderSpaceDetails> {
     // Validate that post exists
     if (postType === 'startup') {
-      const startup = await this.db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, postId))
-        .limit(1);
-
-      if (!startup.length) {
+      const startup = await Startup.findById(postId);
+      if (!startup) {
         throw new Error('Startup not found');
       }
     } else {
-      const hackathon = await this.db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, postId))
-        .limit(1);
-
-      if (!hackathon.length) {
+      const hackathon = await Hackathon.findById(postId);
+      if (!hackathon) {
         throw new Error('Hackathon not found');
       }
     }
 
     // Check if Builder Space already exists (uniqueness validation)
-    const existingSpace = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(
-        and(
-          eq(teamSpaces.postType, postType),
-          eq(teamSpaces.postId, postId)
-        )
-      )
-      .limit(1);
+    const existingSpace = await TeamSpace.findOne({
+      postType,
+      postId
+    });
 
-    if (existingSpace.length > 0) {
+    if (existingSpace) {
       throw new Error('Builder Space already exists for this team');
     }
 
     // Create new Builder Space
-    const result = await this.db
-      .insert(teamSpaces)
-      .values({
-        postType,
-        postId,
-        name,
-        description,
-      })
-      .returning();
+    const result = await TeamSpace.create({
+      postType,
+      postId,
+      name,
+      description,
+    });
 
-    return result[0] as BuilderSpaceDetails;
+    return result.toObject() as BuilderSpaceDetails;
   }
 
   /**
@@ -99,28 +72,24 @@ export class BuilderSpaceService {
    */
   async getBuilderSpace(spaceId: string, userId: string): Promise<BuilderSpaceDetails> {
     // Get the space
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate user is a team member
     const isAuthorized = await this.validateTeamMemberAccess(
       userId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
       throw new Error('Access denied: User is not a team member');
     }
 
-    return space[0] as BuilderSpaceDetails;
+    return space.toObject() as BuilderSpaceDetails;
   }
 
   /**
@@ -134,18 +103,12 @@ export class BuilderSpaceService {
     postType: 'startup' | 'hackathon',
     postId: string
   ): Promise<BuilderSpaceDetails | null> {
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(
-        and(
-          eq(teamSpaces.postType, postType),
-          eq(teamSpaces.postId, postId)
-        )
-      )
-      .limit(1);
+    const space = await TeamSpace.findOne({
+      postType,
+      postId
+    });
 
-    return space.length > 0 ? (space[0] as BuilderSpaceDetails) : null;
+    return space ? (space.toObject() as BuilderSpaceDetails) : null;
   }
 
   /**
@@ -191,19 +154,13 @@ export class BuilderSpaceService {
     postType: 'startup' | 'hackathon',
     postId: string
   ): Promise<boolean> {
-    const member = await this.db
-      .select()
-      .from(teamMembers)
-      .where(
-        and(
-          eq(teamMembers.userId, userId),
-          eq(teamMembers.postType, postType),
-          eq(teamMembers.postId, postId)
-        )
-      )
-      .limit(1);
+    const member = await TeamMember.findOne({
+      userId,
+      postType,
+      postId
+    });
 
-    return member.length > 0;
+    return !!member;
   }
 
   /**
@@ -217,18 +174,12 @@ export class BuilderSpaceService {
     postType: 'startup' | 'hackathon',
     postId: string
   ): Promise<boolean> {
-    const existingSpace = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(
-        and(
-          eq(teamSpaces.postType, postType),
-          eq(teamSpaces.postId, postId)
-        )
-      )
-      .limit(1);
+    const existingSpace = await TeamSpace.findOne({
+      postType,
+      postId
+    });
 
-    return existingSpace.length === 0;
+    return !existingSpace;
   }
 
   /**
@@ -239,10 +190,7 @@ export class BuilderSpaceService {
    */
   async getUserBuilderSpaces(userId: string): Promise<BuilderSpaceDetails[]> {
     // Get all team memberships for the user
-    const memberships = await this.db
-      .select()
-      .from(teamMembers)
-      .where(eq(teamMembers.userId, userId));
+    const memberships = await TeamMember.find({ userId }).lean();
 
     if (memberships.length === 0) {
       return [];

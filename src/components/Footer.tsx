@@ -32,9 +32,7 @@ export function Footer() {
           {/* Logo Column */}
           <div className="col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <Rocket className="w-5 h-5 text-black" />
-              </div>
+              <img src="/logo.svg" alt="CodeJam" className="w-8 h-8" />
               <span className="text-lg font-semibold text-white">CodeJam</span>
             </Link>
             <p className="text-sm text-white/50 mb-6 max-w-xs">

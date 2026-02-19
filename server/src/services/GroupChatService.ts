@@ -1,6 +1,4 @@
-import { db as defaultDb, spaceMessages, teamSpaces, users } from '../db/index.js';
-import { eq, desc } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { SpaceMessage, TeamSpace, User } from '../db/index.js';
 import { BuilderSpaceService } from './BuilderSpaceService.js';
 import { messageBroadcastService, MessageType } from './MessageBroadcastService.js';
 import DOMPurify from 'isomorphic-dompurify';
@@ -22,12 +20,10 @@ export interface SendGroupMessageParams {
 }
 
 export class GroupChatService {
-  private db: BetterSQLite3Database<any>;
   private builderSpaceService: BuilderSpaceService;
 
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-    this.builderSpaceService = new BuilderSpaceService(this.db);
+  constructor() {
+    this.builderSpaceService = new BuilderSpaceService();
   }
 
   /**
@@ -78,21 +74,17 @@ export class GroupChatService {
     const { spaceId, senderId, content } = params;
 
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization - only team members can send messages
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       senderId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -103,37 +95,27 @@ export class GroupChatService {
     const sanitizedContent = this.validateAndSanitizeContent(content);
 
     // Get sender information
-    const sender = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, senderId))
-      .limit(1);
+    const sender = await User.findById(senderId);
 
-    if (!sender.length) {
+    if (!sender) {
       throw new Error('Sender not found');
     }
 
     // Create message
-    const now = new Date();
-    const messageId = crypto.randomUUID();
-
-    await this.db.insert(spaceMessages).values({
-      id: messageId,
+    const message = await SpaceMessage.create({
       spaceId,
       senderId,
       content: sanitizedContent,
-      createdAt: now,
-      updatedAt: now,
     });
 
-    const message: GroupMessage = {
-      id: messageId,
+    const messageData: GroupMessage = {
+      id: message.id,
       spaceId,
       senderId,
-      senderName: sender[0].name,
+      senderName: sender.name,
       content: sanitizedContent,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
     };
 
     // Broadcast message to all team members in real-time (excluding sender)
@@ -141,14 +123,14 @@ export class GroupChatService {
       spaceId,
       {
         type: MessageType.GROUP_MESSAGE,
-        payload: message,
-        timestamp: now,
+        payload: messageData,
+        timestamp: message.createdAt,
         senderId,
       },
       senderId // Exclude sender from broadcast
     );
 
-    return message;
+    return messageData;
   }
 
   /**
@@ -162,21 +144,17 @@ export class GroupChatService {
    */
   async getGroupMessages(spaceId: string, userId: string): Promise<GroupMessage[]> {
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization - only team members can view messages
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -184,29 +162,19 @@ export class GroupChatService {
     }
 
     // Get messages with sender information
-    const messages = await this.db
-      .select({
-        id: spaceMessages.id,
-        spaceId: spaceMessages.spaceId,
-        senderId: spaceMessages.senderId,
-        senderName: users.name,
-        content: spaceMessages.content,
-        createdAt: spaceMessages.createdAt,
-        updatedAt: spaceMessages.updatedAt,
-      })
-      .from(spaceMessages)
-      .leftJoin(users, eq(spaceMessages.senderId, users.id))
-      .where(eq(spaceMessages.spaceId, spaceId))
-      .orderBy(spaceMessages.createdAt); // Chronological order (oldest first)
+    const messages = await SpaceMessage.find({ spaceId })
+      .populate('senderId', 'name')
+      .sort({ createdAt: 1 }) // Chronological order (oldest first)
+      .lean();
 
-    return messages.map(msg => ({
-      id: msg.id,
+    return messages.map((msg: any) => ({
+      id: msg.id || msg._id.toString(),
       spaceId: msg.spaceId,
-      senderId: msg.senderId,
-      senderName: msg.senderName || 'Unknown User',
+      senderId: msg.senderId?._id?.toString() || msg.senderId,
+      senderName: msg.senderId?.name || 'Unknown User',
       content: msg.content,
-      createdAt: msg.createdAt || new Date(),
-      updatedAt: msg.updatedAt || new Date(),
+      createdAt: msg.createdAt,
+      updatedAt: msg.updatedAt,
     }));
   }
 
@@ -221,21 +189,17 @@ export class GroupChatService {
    */
   async getLatestMessage(spaceId: string, userId: string): Promise<GroupMessage | null> {
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -243,35 +207,24 @@ export class GroupChatService {
     }
 
     // Get most recent message
-    const messages = await this.db
-      .select({
-        id: spaceMessages.id,
-        spaceId: spaceMessages.spaceId,
-        senderId: spaceMessages.senderId,
-        senderName: users.name,
-        content: spaceMessages.content,
-        createdAt: spaceMessages.createdAt,
-        updatedAt: spaceMessages.updatedAt,
-      })
-      .from(spaceMessages)
-      .leftJoin(users, eq(spaceMessages.senderId, users.id))
-      .where(eq(spaceMessages.spaceId, spaceId))
-      .orderBy(desc(spaceMessages.createdAt))
-      .limit(1);
+    const message = await SpaceMessage.findOne({ spaceId })
+      .populate('senderId', 'name')
+      .sort({ createdAt: -1 })
+      .limit(1)
+      .lean();
 
-    if (!messages.length) {
+    if (!message) {
       return null;
     }
 
-    const msg = messages[0];
     return {
-      id: msg.id,
-      spaceId: msg.spaceId,
-      senderId: msg.senderId,
-      senderName: msg.senderName || 'Unknown User',
-      content: msg.content,
-      createdAt: msg.createdAt || new Date(),
-      updatedAt: msg.updatedAt || new Date(),
+      id: message.id || (message as any)._id.toString(),
+      spaceId: message.spaceId,
+      senderId: (message.senderId as any)?._id?.toString() || message.senderId,
+      senderName: (message.senderId as any)?.name || 'Unknown User',
+      content: message.content,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
     };
   }
 
@@ -286,21 +239,17 @@ export class GroupChatService {
    */
   async getMessageCount(spaceId: string, userId: string): Promise<number> {
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -308,12 +257,7 @@ export class GroupChatService {
     }
 
     // Count messages
-    const messages = await this.db
-      .select()
-      .from(spaceMessages)
-      .where(eq(spaceMessages.spaceId, spaceId));
-
-    return messages.length;
+    return await SpaceMessage.countDocuments({ spaceId });
   }
 }
 

@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, hackathons, users, applications, insertHackathonSchema, teamSpaces, teamMembers } from '../db/index.js';
-import { eq, desc, ilike, or, and, gte } from 'drizzle-orm';
+import { User, Hackathon, Application, TeamSpace, TeamMember, insertHackathonSchema } from '../db/index.js';
 import { authenticateToken, AuthRequest, optionalAuth } from '../middleware/auth.js';
 import { broadcastStatsUpdate } from '../utils/statsHelper.js';
 
@@ -10,21 +9,10 @@ const router = Router();
 // Get user's own hackathons
 router.get('/my', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userHackathons = await db
-      .select({
-        id: hackathons.id,
-        name: hackathons.name,
-        description: hackathons.description,
-        teamSize: hackathons.teamSize,
-        deadline: hackathons.deadline,
-        skillsNeeded: hackathons.skillsNeeded,
-        creatorId: hackathons.creatorId,
-        createdAt: hackathons.createdAt,
-        updatedAt: hackathons.updatedAt,
-      })
-      .from(hackathons)
-      .where(eq(hackathons.creatorId, req.user!.id))
-      .orderBy(desc(hackathons.createdAt));
+    const userHackathons = await Hackathon.find({ creatorId: req.user!.id })
+      .select('id name description teamSize deadline skillsNeeded creatorId createdAt updatedAt')
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ hackathons: userHackathons });
   } catch (error) {
@@ -38,50 +26,45 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { search, upcoming, limit = '20', offset = '0' } = req.query;
 
-    let query = db
-      .select({
-        id: hackathons.id,
-        name: hackathons.name,
-        description: hackathons.description,
-        teamSize: hackathons.teamSize,
-        deadline: hackathons.deadline,
-        skillsNeeded: hackathons.skillsNeeded,
-        createdAt: hackathons.createdAt,
-        creator: {
-          id: users.id,
-          name: users.name,
-          avatar: users.avatar,
-        },
-      })
-      .from(hackathons)
-      .leftJoin(users, eq(hackathons.creatorId, users.id))
-      .orderBy(desc(hackathons.createdAt));
-
-    // Apply filters
-    const conditions = [];
+    // Build filter conditions
+    const filter: any = {};
     
     if (search) {
-      conditions.push(
-        or(
-          ilike(hackathons.name, `%${search}%`),
-          ilike(hackathons.description, `%${search}%`)
-        )
-      );
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
     }
 
     if (upcoming === 'true') {
-      conditions.push(gte(hackathons.deadline, new Date()));
+      filter.deadline = { $gte: new Date() };
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
-
-    const result = await query
+    const result = await Hackathon.find(filter)
+      .populate('creatorId', 'id name avatar')
+      .select('id name description teamSize deadline skillsNeeded createdAt')
+      .sort({ createdAt: -1 })
       .limit(parseInt(limit as string))
-      .offset(parseInt(offset as string));
+      .skip(parseInt(offset as string))
+      .lean();
 
-    res.json({ hackathons: result });
+    // Transform to match expected format
+    const hackathons = result.map((h: any) => ({
+      id: h.id,
+      name: h.name,
+      description: h.description,
+      teamSize: h.teamSize,
+      deadline: h.deadline,
+      skillsNeeded: h.skillsNeeded,
+      createdAt: h.createdAt,
+      creator: h.creatorId ? {
+        id: h.creatorId.id,
+        name: h.creatorId.name,
+        avatar: h.creatorId.avatar,
+      } : null,
+    }));
+
+    res.json({ hackathons });
   } catch (error: any) {
     console.error('Get hackathons error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -93,30 +76,11 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    const hackathon = await db
-      .select({
-        id: hackathons.id,
-        name: hackathons.name,
-        description: hackathons.description,
-        teamSize: hackathons.teamSize,
-        deadline: hackathons.deadline,
-        skillsNeeded: hackathons.skillsNeeded,
-        createdAt: hackathons.createdAt,
-        creator: {
-          id: users.id,
-          name: users.name,
-          avatar: users.avatar,
-          college: users.college,
-          city: users.city,
-          bio: users.bio,
-        },
-      })
-      .from(hackathons)
-      .leftJoin(users, eq(hackathons.creatorId, users.id))
-      .where(eq(hackathons.id, id))
-      .limit(1);
+    const hackathon = await Hackathon.findById(id)
+      .populate('creatorId', 'id name avatar college city bio')
+      .lean();
 
-    if (!hackathon.length) {
+    if (!hackathon) {
       return res.status(404).json({ error: 'Hackathon not found' });
     }
 
@@ -125,36 +89,41 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
     let isCreator = false;
     if (req.user) {
       // Check if user is the creator
-      const hackathonRecord = await db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, id))
-        .limit(1);
-      
-      if (hackathonRecord.length > 0) {
-        isCreator = hackathonRecord[0].creatorId === req.user.id;
-      }
+      isCreator = hackathon.creatorId && (hackathon.creatorId as any).id === req.user.id;
 
       // Only check for applications if user is not the creator
       if (!isCreator) {
-        const application = await db
-          .select()
-          .from(applications)
-          .where(
-            and(
-              eq(applications.applicantId, req.user.id),
-              eq(applications.postId, id),
-              eq(applications.postType, 'hackathon')
-            )
-          )
-          .limit(1);
+        const application = await Application.findOne({
+          applicantId: req.user.id,
+          postId: id,
+          postType: 'hackathon'
+        });
 
-        hasApplied = application.length > 0;
+        hasApplied = !!application;
       }
     }
 
+    // Transform to match expected format
+    const result = {
+      id: hackathon.id,
+      name: hackathon.name,
+      description: hackathon.description,
+      teamSize: hackathon.teamSize,
+      deadline: hackathon.deadline,
+      skillsNeeded: hackathon.skillsNeeded,
+      createdAt: hackathon.createdAt,
+      creator: hackathon.creatorId ? {
+        id: (hackathon.creatorId as any).id,
+        name: (hackathon.creatorId as any).name,
+        avatar: (hackathon.creatorId as any).avatar,
+        college: (hackathon.creatorId as any).college,
+        city: (hackathon.creatorId as any).city,
+        bio: (hackathon.creatorId as any).bio,
+      } : null,
+    };
+
     res.json({ 
-      hackathon: hackathon[0],
+      hackathon: result,
       hasApplied,
       isCreator
     });
@@ -169,54 +138,50 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const hackathonData = insertHackathonSchema.parse(req.body);
 
-    const newHackathon = await db
-      .insert(hackathons)
-      .values({
-        ...hackathonData,
-        creatorId: req.user!.id,
-      })
-      .returning({
-        id: hackathons.id,
-        name: hackathons.name,
-        description: hackathons.description,
-        teamSize: hackathons.teamSize,
-        deadline: hackathons.deadline,
-        skillsNeeded: hackathons.skillsNeeded,
-        createdAt: hackathons.createdAt,
-      });
+    const newHackathon = await Hackathon.create({
+      ...hackathonData,
+      creatorId: req.user!.id,
+    });
 
     // Auto-create Builder Space (workspace) for this hackathon
-    const workspace = await db
-      .insert(teamSpaces)
-      .values({
-        id: crypto.randomUUID(),
-        postType: 'hackathon',
-        postId: newHackathon[0].id,
-        name: `${newHackathon[0].name} Workspace`,
-        description: `Collaboration workspace for ${newHackathon[0].name}`,
-        createdAt: new Date(),
-      })
-      .returning();
+    const workspace = await TeamSpace.create({
+      postType: 'hackathon',
+      postId: newHackathon.id,
+      name: `${newHackathon.name} Workspace`,
+      description: `Collaboration workspace for ${newHackathon.name}`,
+    });
 
     // Add creator as first team member
-    await db
-      .insert(teamMembers)
-      .values({
-        id: crypto.randomUUID(),
-        userId: req.user!.id,
-        postType: 'hackathon',
-        postId: newHackathon[0].id,
-        role: 'founder',
-        joinedAt: new Date(),
-      });
+    await TeamMember.create({
+      userId: req.user!.id,
+      postType: 'hackathon',
+      postId: newHackathon.id,
+      role: 'founder',
+      joinedAt: new Date(),
+    });
 
     // Broadcast stats update
     broadcastStatsUpdate();
 
     res.status(201).json({
       message: 'Hackathon created successfully',
-      hackathon: newHackathon[0],
-      workspace: workspace[0],
+      hackathon: {
+        id: newHackathon.id,
+        name: newHackathon.name,
+        description: newHackathon.description,
+        teamSize: newHackathon.teamSize,
+        deadline: newHackathon.deadline,
+        skillsNeeded: newHackathon.skillsNeeded,
+        createdAt: newHackathon.createdAt,
+      },
+      workspace: {
+        id: workspace.id,
+        postType: workspace.postType,
+        postId: workspace.postId,
+        name: workspace.name,
+        description: workspace.description,
+        createdAt: workspace.createdAt,
+      },
     });
   } catch (error: any) {
     console.error('Create hackathon error:', error?.message || error);
@@ -235,32 +200,25 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const updateData = insertHackathonSchema.partial().parse(req.body);
 
     // Check if user is the creator
-    const hackathon = await db
-      .select()
-      .from(hackathons)
-      .where(eq(hackathons.id, id))
-      .limit(1);
+    const hackathon = await Hackathon.findById(id);
 
-    if (!hackathon.length) {
+    if (!hackathon) {
       return res.status(404).json({ error: 'Hackathon not found' });
     }
 
-    if (hackathon[0].creatorId !== req.user!.id) {
+    if (hackathon.creatorId.toString() !== req.user!.id) {
       return res.status(403).json({ error: 'Only the creator can update this hackathon' });
     }
 
-    const updatedHackathon = await db
-      .update(hackathons)
-      .set({
-        ...updateData,
-        updatedAt: new Date(),
-      })
-      .where(eq(hackathons.id, id))
-      .returning();
+    const updatedHackathon = await Hackathon.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
 
     res.json({
       message: 'Hackathon updated successfully',
-      hackathon: updatedHackathon[0],
+      hackathon: updatedHackathon,
     });
   } catch (error: any) {
     console.error('Update hackathon error:', error);
@@ -277,32 +235,24 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const { id } = req.params;
 
     // Check if user is the creator
-    const hackathon = await db
-      .select()
-      .from(hackathons)
-      .where(eq(hackathons.id, id))
-      .limit(1);
+    const hackathon = await Hackathon.findById(id);
 
-    if (!hackathon.length) {
+    if (!hackathon) {
       return res.status(404).json({ error: 'Hackathon not found' });
     }
 
-    if (hackathon[0].creatorId !== req.user!.id) {
+    if (hackathon.creatorId.toString() !== req.user!.id) {
       return res.status(403).json({ error: 'Only the creator can delete this hackathon' });
     }
 
     // Delete related applications first
-    await db
-      .delete(applications)
-      .where(
-        and(
-          eq(applications.postId, id),
-          eq(applications.postType, 'hackathon')
-        )
-      );
+    await Application.deleteMany({
+      postId: id,
+      postType: 'hackathon'
+    });
 
     // Delete hackathon
-    await db.delete(hackathons).where(eq(hackathons.id, id));
+    await Hackathon.findByIdAndDelete(id);
 
     res.json({ message: 'Hackathon deleted successfully' });
   } catch (error: any) {

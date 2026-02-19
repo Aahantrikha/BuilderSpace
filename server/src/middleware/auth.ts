@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { db, users } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { User } from '../db/index.js';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -30,21 +29,17 @@ export const authenticateToken = async (
     };
 
     // Verify user still exists
-    const user = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-      })
-      .from(users)
-      .where(eq(users.id, decoded.userId))
-      .limit(1);
+    const user = await User.findById(decoded.userId).select('_id email name');
 
-    if (!user.length) {
+    if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    req.user = user[0];
+    req.user = {
+      id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+    };
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
@@ -67,18 +62,14 @@ export const optionalAuth = async (
         email: string;
       };
 
-      const user = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          name: users.name,
-        })
-        .from(users)
-        .where(eq(users.id, decoded.userId))
-        .limit(1);
+      const user = await User.findById(decoded.userId).select('_id email name');
 
-      if (user.length) {
-        req.user = user[0];
+      if (user) {
+        req.user = {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+        };
       }
     }
 

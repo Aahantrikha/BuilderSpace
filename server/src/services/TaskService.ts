@@ -1,6 +1,4 @@
-import { db as defaultDb, spaceTasks, teamSpaces, users } from '../db/index.js';
-import { eq, and } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { SpaceTask, TeamSpace, User } from '../db/index.js';
 import { BuilderSpaceService } from './BuilderSpaceService.js';
 import { messageBroadcastService, MessageType } from './MessageBroadcastService.js';
 
@@ -44,12 +42,10 @@ export interface UpdateTaskStatusParams {
  * Requirements: 7.1, 7.2, 7.5
  */
 export class TaskService {
-  private db: BetterSQLite3Database<any>;
   private builderSpaceService: BuilderSpaceService;
 
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-    this.builderSpaceService = new BuilderSpaceService(this.db);
+  constructor() {
+    this.builderSpaceService = new BuilderSpaceService();
   }
 
   /**
@@ -109,21 +105,17 @@ export class TaskService {
     const { spaceId, creatorId, title, description } = params;
 
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization - only team members can create tasks
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       creatorId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -137,41 +129,31 @@ export class TaskService {
     const sanitizedDescription = this.validateDescription(description);
 
     // Get creator information
-    const creator = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, creatorId))
-      .limit(1);
+    const creator = await User.findById(creatorId);
 
-    if (!creator.length) {
+    if (!creator) {
       throw new Error('Creator not found');
     }
 
     // Create task
-    const now = new Date();
-    const taskId = crypto.randomUUID();
-
-    await this.db.insert(spaceTasks).values({
-      id: taskId,
+    const task = await SpaceTask.create({
       spaceId,
       creatorId,
       title: sanitizedTitle,
       description: sanitizedDescription,
       completed: false,
-      createdAt: now,
-      updatedAt: now,
     });
 
-    const task: SpaceTask = {
-      id: taskId,
+    const taskData: SpaceTask = {
+      id: task.id,
       spaceId,
       creatorId,
-      creatorName: creator[0].name,
+      creatorName: creator.name,
       title: sanitizedTitle,
       description: sanitizedDescription,
       completed: false,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
     };
 
     // Broadcast task creation to all team members in real-time (excluding creator)
@@ -179,14 +161,14 @@ export class TaskService {
       spaceId,
       {
         type: MessageType.TASK_CREATED,
-        payload: task,
-        timestamp: now,
+        payload: taskData,
+        timestamp: task.createdAt,
         senderId: creatorId,
       },
       creatorId // Exclude creator from broadcast
     );
 
-    return task;
+    return taskData;
   }
 
   /**

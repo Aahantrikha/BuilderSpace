@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, users, insertUserSchema } from '../db/index.js';
-import { eq, or } from 'drizzle-orm';
+import { User } from '../db/index.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateTokens } from '../utils/jwt.js';
 import { verifyGoogleToken, getGoogleAuthUrl } from '../utils/google-auth.js';
@@ -32,13 +31,9 @@ router.post('/signup', async (req, res) => {
     const { name, email, password } = signupSchema.parse(req.body);
 
     // Check if user already exists
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
 
-    if (existingUser.length > 0) {
+    if (existingUser) {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
 
@@ -46,25 +41,16 @@ router.post('/signup', async (req, res) => {
     const hashedPassword = await hashPassword(password);
 
     // Create user
-    const newUser = await db
-      .insert(users)
-      .values({
-        name,
-        email,
-        password: hashedPassword,
-        emailVerified: false,
-        onboardingCompleted: false,
-      })
-      .returning({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        avatar: users.avatar,
-        onboardingCompleted: users.onboardingCompleted,
-      });
+    const newUser = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      emailVerified: false,
+      onboardingCompleted: false,
+    });
 
     // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(newUser[0].id, newUser[0].email);
+    const { accessToken, refreshToken } = generateTokens(newUser._id.toString(), newUser.email);
 
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', refreshToken, {
@@ -79,7 +65,13 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({
       message: 'Account created successfully',
-      user: newUser[0],
+      user: {
+        id: newUser._id.toString(),
+        name: newUser.name,
+        email: newUser.email,
+        avatar: newUser.avatar,
+        onboardingCompleted: newUser.onboardingCompleted,
+      },
       accessToken,
     });
   } catch (error) {
@@ -97,24 +89,20 @@ router.post('/login', async (req, res) => {
     const { email, password } = loginSchema.parse(req.body);
 
     // Find user
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    const user = await User.findOne({ email: email.toLowerCase() });
 
-    if (!user.length || !user[0].password) {
+    if (!user || !user.password) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Verify password
-    const isValidPassword = await comparePassword(password, user[0].password);
+    const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user[0].id, user[0].email);
+    const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.email);
 
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', refreshToken, {
@@ -127,16 +115,16 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Login successful',
       user: {
-        id: user[0].id,
-        name: user[0].name,
-        email: user[0].email,
-        avatar: user[0].avatar,
-        college: user[0].college,
-        city: user[0].city,
-        bio: user[0].bio,
-        skills: user[0].skills,
-        preferences: user[0].preferences,
-        onboardingCompleted: user[0].onboardingCompleted,
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        college: user.college,
+        city: user.city,
+        bio: user.bio,
+        skills: user.skills,
+        preferences: user.preferences,
+        onboardingCompleted: user.onboardingCompleted,
       },
       accessToken,
     });
@@ -157,50 +145,39 @@ router.post('/google', async (req, res) => {
     // Verify Google token
     const googleUser = await verifyGoogleToken(token);
 
-    // Check if user exists
-    let user = await db
-      .select()
-      .from(users)
-      .where(or(
-        eq(users.email, googleUser.email),
-        eq(users.googleId, googleUser.googleId)
-      ))
-      .limit(1);
+    // Check if user exists by email or googleId
+    let user = await User.findOne({
+      $or: [
+        { email: googleUser.email.toLowerCase() },
+        { googleId: googleUser.googleId }
+      ]
+    });
 
-    if (!user.length) {
+    if (!user) {
       // Create new user
-      const newUser = await db
-        .insert(users)
-        .values({
-          name: googleUser.name,
-          email: googleUser.email,
-          googleId: googleUser.googleId,
-          avatar: googleUser.avatar,
-          emailVerified: googleUser.emailVerified,
-          onboardingCompleted: false,
-        })
-        .returning();
-
-      user = newUser;
+      user = await User.create({
+        name: googleUser.name,
+        email: googleUser.email.toLowerCase(),
+        googleId: googleUser.googleId,
+        avatar: googleUser.avatar,
+        emailVerified: googleUser.emailVerified,
+        onboardingCompleted: false,
+      });
       
       // Broadcast stats update for new user
       broadcastStatsUpdate();
     } else {
       // Update existing user with Google info if not set
-      if (!user[0].googleId) {
-        await db
-          .update(users)
-          .set({
-            googleId: googleUser.googleId,
-            avatar: googleUser.avatar || user[0].avatar,
-            emailVerified: googleUser.emailVerified || user[0].emailVerified,
-          })
-          .where(eq(users.id, user[0].id));
+      if (!user.googleId) {
+        user.googleId = googleUser.googleId;
+        user.avatar = googleUser.avatar || user.avatar;
+        user.emailVerified = googleUser.emailVerified || user.emailVerified;
+        await user.save();
       }
     }
 
     // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user[0].id, user[0].email);
+    const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.email);
 
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', refreshToken, {
@@ -213,16 +190,16 @@ router.post('/google', async (req, res) => {
     res.json({
       message: 'Google login successful',
       user: {
-        id: user[0].id,
-        name: user[0].name,
-        email: user[0].email,
-        avatar: user[0].avatar,
-        college: user[0].college,
-        city: user[0].city,
-        bio: user[0].bio,
-        skills: user[0].skills,
-        preferences: user[0].preferences,
-        onboardingCompleted: user[0].onboardingCompleted,
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        college: user.college,
+        city: user.city,
+        bio: user.bio,
+        skills: user.skills,
+        preferences: user.preferences,
+        onboardingCompleted: user.onboardingCompleted,
       },
       accessToken,
     });
@@ -255,29 +232,27 @@ router.post('/logout', (req, res) => {
 // Get current user
 router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const user = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        avatar: users.avatar,
-        college: users.college,
-        city: users.city,
-        bio: users.bio,
-        skills: users.skills,
-        preferences: users.preferences,
-        onboardingCompleted: users.onboardingCompleted,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(eq(users.id, req.user!.id))
-      .limit(1);
+    const user = await User.findById(req.user!.id).select('-password');
 
-    if (!user.length) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: user[0] });
+    res.json({
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        college: user.college,
+        city: user.city,
+        bio: user.bio,
+        skills: user.skills,
+        preferences: user.preferences,
+        onboardingCompleted: user.onboardingCompleted,
+        createdAt: user.createdAt,
+      }
+    });
   } catch (error) {
     console.error('Get user error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ error: 'Internal server error' });
@@ -287,42 +262,38 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
 // Update user profile
 router.put('/profile', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const updateData = insertUserSchema.partial().parse(req.body);
-    delete (updateData as any).id;
-    delete (updateData as any).email;
-    delete (updateData as any).password;
+    // Remove fields that shouldn't be updated
+    const updateData = { ...req.body };
+    delete updateData.id;
+    delete updateData._id;
+    delete updateData.email;
+    delete updateData.password;
+    delete updateData.googleId;
 
-    // Ensure preferences is properly typed
-    const setData: any = {
-      ...updateData,
-      updatedAt: new Date(),
-    };
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user!.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
 
-    // Handle preferences separately if it exists
-    if (updateData.preferences) {
-      setData.preferences = updateData.preferences;
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
     }
-
-    const updatedUser = await db
-      .update(users)
-      .set(setData)
-      .where(eq(users.id, req.user!.id))
-      .returning({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        avatar: users.avatar,
-        college: users.college,
-        city: users.city,
-        bio: users.bio,
-        skills: users.skills,
-        preferences: users.preferences,
-        onboardingCompleted: users.onboardingCompleted,
-      });
 
     res.json({
       message: 'Profile updated successfully',
-      user: updatedUser[0],
+      user: {
+        id: updatedUser._id.toString(),
+        name: updatedUser.name,
+        email: updatedUser.email,
+        avatar: updatedUser.avatar,
+        college: updatedUser.college,
+        city: updatedUser.city,
+        bio: updatedUser.bio,
+        skills: updatedUser.skills,
+        preferences: updatedUser.preferences,
+        onboardingCompleted: updatedUser.onboardingCompleted,
+      },
     });
   } catch (error) {
     console.error('Update profile error:', error instanceof Error ? error.message : 'Unknown error');

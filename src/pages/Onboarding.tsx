@@ -142,9 +142,7 @@ export function Onboarding() {
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-              <Rocket className="w-6 h-6 text-black" />
-            </div>
+            <img src="/logo.svg" alt="CodeJam" className="w-10 h-10" />
             <span className="text-xl font-semibold text-white">CodeJam</span>
           </div>
         </div>

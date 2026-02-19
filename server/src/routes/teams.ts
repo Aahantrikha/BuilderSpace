@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 import { teamFormationService } from '../services/TeamFormationService.js';
-import { db, applications, startups, hackathons } from '../db/index.js';
-import { eq } from 'drizzle-orm';
+import { Application, Startup, Hackathon } from '../db/index.js';
 
 const router = Router();
 
@@ -14,39 +13,25 @@ router.post('/applications/:id/invite', authenticateToken, async (req: AuthReque
     const founderId = req.user!.id;
 
     // Get application details
-    const application = await db
-      .select()
-      .from(applications)
-      .where(eq(applications.id, id))
-      .limit(1);
+    const application = await Application.findById(id);
 
-    if (!application.length) {
+    if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
 
     // Check if application is accepted
-    if (application[0].status !== 'accepted') {
+    if (application.status !== 'accepted') {
       return res.status(400).json({ error: 'Application must be accepted before inviting to team' });
     }
 
     // Check if user owns the post
     let isOwner = false;
-    if (application[0].postType === 'startup') {
-      const startup = await db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, application[0].postId))
-        .limit(1);
-
-      isOwner = startup.length > 0 && startup[0].founderId === founderId;
+    if (application.postType === 'startup') {
+      const startup = await Startup.findById(application.postId);
+      isOwner = startup && startup.founderId.toString() === founderId;
     } else {
-      const hackathon = await db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, application[0].postId))
-        .limit(1);
-
-      isOwner = hackathon.length > 0 && hackathon[0].creatorId === founderId;
+      const hackathon = await Hackathon.findById(application.postId);
+      isOwner = hackathon && hackathon.creatorId.toString() === founderId;
     }
 
     if (!isOwner) {
@@ -90,29 +75,21 @@ router.get('/:postType/:postId/members', authenticateToken, async (req: AuthRequ
     // Check if user owns the post or is a team member
     let isAuthorized = false;
     if (postType === 'startup') {
-      const startup = await db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, postId))
-        .limit(1);
+      const startup = await Startup.findById(postId);
 
-      if (!startup.length) {
+      if (!startup) {
         return res.status(404).json({ error: 'Startup not found' });
       }
 
-      isAuthorized = startup[0].founderId === userId;
+      isAuthorized = startup.founderId.toString() === userId;
     } else {
-      const hackathon = await db
-        .select()
-        .from(hackathons)
-        .where(eq(hackathons.id, postId))
-        .limit(1);
+      const hackathon = await Hackathon.findById(postId);
 
-      if (!hackathon.length) {
+      if (!hackathon) {
         return res.status(404).json({ error: 'Hackathon not found' });
       }
 
-      isAuthorized = hackathon[0].creatorId === userId;
+      isAuthorized = hackathon.creatorId.toString() === userId;
     }
 
     // If not owner, check if user is a team member

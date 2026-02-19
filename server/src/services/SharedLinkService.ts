@@ -1,6 +1,4 @@
-import { db as defaultDb, spaceLinks, teamSpaces, users } from '../db/index.js';
-import { eq, and } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { SpaceLink, TeamSpace, User } from '../db/index.js';
 import { BuilderSpaceService } from './BuilderSpaceService.js';
 import { messageBroadcastService, MessageType } from './MessageBroadcastService.js';
 import { URLValidationService } from './URLValidationService.js';
@@ -37,13 +35,11 @@ export interface AddSharedLinkParams {
  * Requirements: 6.1, 6.2, 6.3
  */
 export class SharedLinkService {
-  private db: BetterSQLite3Database<any>;
   private builderSpaceService: BuilderSpaceService;
   private urlValidationService: URLValidationService;
 
-  constructor(db?: BetterSQLite3Database<any>) {
-    this.db = db || defaultDb;
-    this.builderSpaceService = new BuilderSpaceService(this.db);
+  constructor() {
+    this.builderSpaceService = new BuilderSpaceService();
     this.urlValidationService = new URLValidationService();
   }
 
@@ -122,21 +118,17 @@ export class SharedLinkService {
     const { spaceId, creatorId, title, url, description } = params;
 
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization - only team members can add links
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       creatorId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -153,41 +145,31 @@ export class SharedLinkService {
     const sanitizedDescription = this.validateDescription(description);
 
     // Get creator information
-    const creator = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, creatorId))
-      .limit(1);
+    const creator = await User.findById(creatorId);
 
-    if (!creator.length) {
+    if (!creator) {
       throw new Error('Creator not found');
     }
 
     // Create link
-    const now = new Date();
-    const linkId = crypto.randomUUID();
-
-    await this.db.insert(spaceLinks).values({
-      id: linkId,
+    const link = await SpaceLink.create({
       spaceId,
       creatorId,
       title: sanitizedTitle,
       url: url.trim(),
       description: sanitizedDescription,
-      createdAt: now,
-      updatedAt: now,
     });
 
-    const link: SharedLink = {
-      id: linkId,
+    const linkData: SharedLink = {
+      id: link.id,
       spaceId,
       creatorId,
-      creatorName: creator[0].name,
+      creatorName: creator.name,
       title: sanitizedTitle,
       url: url.trim(),
       description: sanitizedDescription,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: link.createdAt,
+      updatedAt: link.updatedAt,
     };
 
     // Broadcast link addition to all team members in real-time (excluding creator)
@@ -195,14 +177,14 @@ export class SharedLinkService {
       spaceId,
       {
         type: MessageType.LINK_ADDED,
-        payload: link,
-        timestamp: now,
+        payload: linkData,
+        timestamp: link.createdAt,
         senderId: creatorId,
       },
       creatorId // Exclude creator from broadcast
     );
 
-    return link;
+    return linkData;
   }
 
   /**
@@ -215,37 +197,29 @@ export class SharedLinkService {
    */
   async removeSharedLink(linkId: string, userId: string): Promise<void> {
     // Get the link
-    const link = await this.db
-      .select()
-      .from(spaceLinks)
-      .where(eq(spaceLinks.id, linkId))
-      .limit(1);
+    const link = await SpaceLink.findById(linkId);
 
-    if (!link.length) {
+    if (!link) {
       throw new Error('Link not found');
     }
 
     // Validate creator authorization - only creator can delete
-    if (link[0].creatorId !== userId) {
+    if (link.creatorId.toString() !== userId) {
       throw new Error('Access denied: Only the link creator can remove this link');
     }
 
     // Get the space to validate it exists
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, link[0].spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(link.spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate user is still a team member
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -253,16 +227,14 @@ export class SharedLinkService {
     }
 
     // Delete the link
-    await this.db
-      .delete(spaceLinks)
-      .where(eq(spaceLinks.id, linkId));
+    await SpaceLink.findByIdAndDelete(linkId);
 
     // Broadcast link removal to all team members in real-time (excluding remover)
     await messageBroadcastService.broadcastGroupMessage(
-      link[0].spaceId,
+      link.spaceId,
       {
         type: MessageType.LINK_REMOVED,
-        payload: { linkId, spaceId: link[0].spaceId },
+        payload: { linkId, spaceId: link.spaceId },
         timestamp: new Date(),
         senderId: userId,
       },
@@ -281,21 +253,17 @@ export class SharedLinkService {
    */
   async getSharedLinks(spaceId: string, userId: string): Promise<SharedLink[]> {
     // Get the space to validate it exists and get post info
-    const space = await this.db
-      .select()
-      .from(teamSpaces)
-      .where(eq(teamSpaces.id, spaceId))
-      .limit(1);
+    const space = await TeamSpace.findById(spaceId);
 
-    if (!space.length) {
+    if (!space) {
       throw new Error('Builder Space not found');
     }
 
     // Validate authorization - only team members can view links
     const isAuthorized = await this.builderSpaceService.validateTeamMemberAccess(
       userId,
-      space[0].postType as 'startup' | 'hackathon',
-      space[0].postId
+      space.postType as 'startup' | 'hackathon',
+      space.postId
     );
 
     if (!isAuthorized) {
@@ -303,33 +271,21 @@ export class SharedLinkService {
     }
 
     // Get links with creator information
-    const links = await this.db
-      .select({
-        id: spaceLinks.id,
-        spaceId: spaceLinks.spaceId,
-        creatorId: spaceLinks.creatorId,
-        creatorName: users.name,
-        title: spaceLinks.title,
-        url: spaceLinks.url,
-        description: spaceLinks.description,
-        createdAt: spaceLinks.createdAt,
-        updatedAt: spaceLinks.updatedAt,
-      })
-      .from(spaceLinks)
-      .leftJoin(users, eq(spaceLinks.creatorId, users.id))
-      .where(eq(spaceLinks.spaceId, spaceId))
-      .orderBy(spaceLinks.createdAt); // Chronological order (oldest first)
+    const links = await SpaceLink.find({ spaceId })
+      .populate('creatorId', 'name')
+      .sort({ createdAt: 1 }) // Chronological order (oldest first)
+      .lean();
 
-    return links.map(link => ({
-      id: link.id,
+    return links.map((link: any) => ({
+      id: link.id || link._id.toString(),
       spaceId: link.spaceId,
-      creatorId: link.creatorId,
-      creatorName: link.creatorName || 'Unknown User',
+      creatorId: link.creatorId?._id?.toString() || link.creatorId,
+      creatorName: link.creatorId?.name || 'Unknown User',
       title: link.title,
       url: link.url,
       description: link.description || undefined,
-      createdAt: link.createdAt || new Date(),
-      updatedAt: link.updatedAt || new Date(),
+      createdAt: link.createdAt,
+      updatedAt: link.updatedAt,
     }));
   }
 

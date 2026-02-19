@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, startups, users, applications, insertStartupSchema, teamSpaces, teamMembers } from '../db/index.js';
-import { eq, desc, ilike, or, and } from 'drizzle-orm';
+import { User, Startup, Application, TeamSpace, TeamMember, insertStartupSchema } from '../db/index.js';
 import { authenticateToken, AuthRequest, optionalAuth } from '../middleware/auth.js';
 import { broadcastStatsUpdate } from '../utils/statsHelper.js';
 
@@ -10,20 +9,10 @@ const router = Router();
 // Get user's own startups
 router.get('/my', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const userStartups = await db
-      .select({
-        id: startups.id,
-        name: startups.name,
-        description: startups.description,
-        stage: startups.stage,
-        skillsNeeded: startups.skillsNeeded,
-        founderId: startups.founderId,
-        createdAt: startups.createdAt,
-        updatedAt: startups.updatedAt,
-      })
-      .from(startups)
-      .where(eq(startups.founderId, req.user!.id))
-      .orderBy(desc(startups.createdAt));
+    const userStartups = await Startup.find({ founderId: req.user!.id })
+      .select('id name description stage skillsNeeded founderId createdAt updatedAt')
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ startups: userStartups });
   } catch (error) {
@@ -37,49 +26,44 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { search, stage, limit = '20', offset = '0' } = req.query;
 
-    let query = db
-      .select({
-        id: startups.id,
-        name: startups.name,
-        description: startups.description,
-        stage: startups.stage,
-        skillsNeeded: startups.skillsNeeded,
-        createdAt: startups.createdAt,
-        founder: {
-          id: users.id,
-          name: users.name,
-          avatar: users.avatar,
-        },
-      })
-      .from(startups)
-      .leftJoin(users, eq(startups.founderId, users.id))
-      .orderBy(desc(startups.createdAt));
-
-    // Apply filters
-    const conditions = [];
+    // Build filter conditions
+    const filter: any = {};
     
     if (search) {
-      conditions.push(
-        or(
-          ilike(startups.name, `%${search}%`),
-          ilike(startups.description, `%${search}%`)
-        )
-      );
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
     }
 
     if (stage) {
-      conditions.push(eq(startups.stage, stage as string));
+      filter.stage = stage;
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
-
-    const result = await query
+    const result = await Startup.find(filter)
+      .populate('founderId', 'id name avatar')
+      .select('id name description stage skillsNeeded createdAt')
+      .sort({ createdAt: -1 })
       .limit(parseInt(limit as string))
-      .offset(parseInt(offset as string));
+      .skip(parseInt(offset as string))
+      .lean();
 
-    res.json({ startups: result });
+    // Transform to match expected format
+    const startups = result.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      stage: s.stage,
+      skillsNeeded: s.skillsNeeded,
+      createdAt: s.createdAt,
+      founder: s.founderId ? {
+        id: s.founderId.id,
+        name: s.founderId.name,
+        avatar: s.founderId.avatar,
+      } : null,
+    }));
+
+    res.json({ startups });
   } catch (error: any) {
     console.error('Get startups error:', error?.message || error);
     res.status(500).json({ error: 'Internal server error' });
@@ -91,29 +75,11 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    const startup = await db
-      .select({
-        id: startups.id,
-        name: startups.name,
-        description: startups.description,
-        stage: startups.stage,
-        skillsNeeded: startups.skillsNeeded,
-        createdAt: startups.createdAt,
-        founder: {
-          id: users.id,
-          name: users.name,
-          avatar: users.avatar,
-          college: users.college,
-          city: users.city,
-          bio: users.bio,
-        },
-      })
-      .from(startups)
-      .leftJoin(users, eq(startups.founderId, users.id))
-      .where(eq(startups.id, id))
-      .limit(1);
+    const startup = await Startup.findById(id)
+      .populate('founderId', 'id name avatar college city bio')
+      .lean();
 
-    if (!startup.length) {
+    if (!startup) {
       return res.status(404).json({ error: 'Startup not found' });
     }
 
@@ -122,36 +88,40 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
     let isFounder = false;
     if (req.user) {
       // Check if user is the founder
-      const startupRecord = await db
-        .select()
-        .from(startups)
-        .where(eq(startups.id, id))
-        .limit(1);
-      
-      if (startupRecord.length > 0) {
-        isFounder = startupRecord[0].founderId === req.user.id;
-      }
+      isFounder = startup.founderId && (startup.founderId as any).id === req.user.id;
 
       // Only check for applications if user is not the founder
       if (!isFounder) {
-        const application = await db
-          .select()
-          .from(applications)
-          .where(
-            and(
-              eq(applications.applicantId, req.user.id),
-              eq(applications.postId, id),
-              eq(applications.postType, 'startup')
-            )
-          )
-          .limit(1);
+        const application = await Application.findOne({
+          applicantId: req.user.id,
+          postId: id,
+          postType: 'startup'
+        });
 
-        hasApplied = application.length > 0;
+        hasApplied = !!application;
       }
     }
 
+    // Transform to match expected format
+    const result = {
+      id: startup.id,
+      name: startup.name,
+      description: startup.description,
+      stage: startup.stage,
+      skillsNeeded: startup.skillsNeeded,
+      createdAt: startup.createdAt,
+      founder: startup.founderId ? {
+        id: (startup.founderId as any).id,
+        name: (startup.founderId as any).name,
+        avatar: (startup.founderId as any).avatar,
+        college: (startup.founderId as any).college,
+        city: (startup.founderId as any).city,
+        bio: (startup.founderId as any).bio,
+      } : null,
+    };
+
     res.json({ 
-      startup: startup[0],
+      startup: result,
       hasApplied,
       isFounder
     });
@@ -166,53 +136,49 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const startupData = insertStartupSchema.parse(req.body);
 
-    const newStartup = await db
-      .insert(startups)
-      .values({
-        ...startupData,
-        founderId: req.user!.id,
-      })
-      .returning({
-        id: startups.id,
-        name: startups.name,
-        description: startups.description,
-        stage: startups.stage,
-        skillsNeeded: startups.skillsNeeded,
-        createdAt: startups.createdAt,
-      });
+    const newStartup = await Startup.create({
+      ...startupData,
+      founderId: req.user!.id,
+    });
 
     // Auto-create Builder Space (workspace) for this startup
-    const workspace = await db
-      .insert(teamSpaces)
-      .values({
-        id: crypto.randomUUID(),
-        postType: 'startup',
-        postId: newStartup[0].id,
-        name: `${newStartup[0].name} Workspace`,
-        description: `Collaboration workspace for ${newStartup[0].name}`,
-        createdAt: new Date(),
-      })
-      .returning();
+    const workspace = await TeamSpace.create({
+      postType: 'startup',
+      postId: newStartup.id,
+      name: `${newStartup.name} Workspace`,
+      description: `Collaboration workspace for ${newStartup.name}`,
+    });
 
     // Add founder as first team member
-    await db
-      .insert(teamMembers)
-      .values({
-        id: crypto.randomUUID(),
-        userId: req.user!.id,
-        postType: 'startup',
-        postId: newStartup[0].id,
-        role: 'founder',
-        joinedAt: new Date(),
-      });
+    await TeamMember.create({
+      userId: req.user!.id,
+      postType: 'startup',
+      postId: newStartup.id,
+      role: 'founder',
+      joinedAt: new Date(),
+    });
 
     // Broadcast stats update
     broadcastStatsUpdate();
 
     res.status(201).json({
       message: 'Startup created successfully',
-      startup: newStartup[0],
-      workspace: workspace[0],
+      startup: {
+        id: newStartup.id,
+        name: newStartup.name,
+        description: newStartup.description,
+        stage: newStartup.stage,
+        skillsNeeded: newStartup.skillsNeeded,
+        createdAt: newStartup.createdAt,
+      },
+      workspace: {
+        id: workspace.id,
+        postType: workspace.postType,
+        postId: workspace.postId,
+        name: workspace.name,
+        description: workspace.description,
+        createdAt: workspace.createdAt,
+      },
     });
   } catch (error) {
     console.error('Create startup error:', (error as any)?.message || error);
@@ -231,32 +197,25 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const updateData = insertStartupSchema.partial().parse(req.body);
 
     // Check if user is the founder
-    const startup = await db
-      .select()
-      .from(startups)
-      .where(eq(startups.id, id))
-      .limit(1);
+    const startup = await Startup.findById(id);
 
-    if (!startup.length) {
+    if (!startup) {
       return res.status(404).json({ error: 'Startup not found' });
     }
 
-    if (startup[0].founderId !== req.user!.id) {
+    if (startup.founderId.toString() !== req.user!.id) {
       return res.status(403).json({ error: 'Only the founder can update this startup' });
     }
 
-    const updatedStartup = await db
-      .update(startups)
-      .set({
-        ...updateData,
-        updatedAt: new Date(),
-      })
-      .where(eq(startups.id, id))
-      .returning();
+    const updatedStartup = await Startup.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
 
     res.json({
       message: 'Startup updated successfully',
-      startup: updatedStartup[0],
+      startup: updatedStartup,
     });
   } catch (error: any) {
     console.error('Update startup error:', error);
@@ -273,32 +232,24 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     const { id } = req.params;
 
     // Check if user is the founder
-    const startup = await db
-      .select()
-      .from(startups)
-      .where(eq(startups.id, id))
-      .limit(1);
+    const startup = await Startup.findById(id);
 
-    if (!startup.length) {
+    if (!startup) {
       return res.status(404).json({ error: 'Startup not found' });
     }
 
-    if (startup[0].founderId !== req.user!.id) {
+    if (startup.founderId.toString() !== req.user!.id) {
       return res.status(403).json({ error: 'Only the founder can delete this startup' });
     }
 
     // Delete related applications first
-    await db
-      .delete(applications)
-      .where(
-        and(
-          eq(applications.postId, id),
-          eq(applications.postType, 'startup')
-        )
-      );
+    await Application.deleteMany({
+      postId: id,
+      postType: 'startup'
+    });
 
     // Delete startup
-    await db.delete(startups).where(eq(startups.id, id));
+    await Startup.findByIdAndDelete(id);
 
     res.json({ message: 'Startup deleted successfully' });
   } catch (error: any) {
