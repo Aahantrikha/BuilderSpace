@@ -8,7 +8,7 @@ const router = Router();
 
 // Extend AuthRequest to include multer file
 interface AuthRequestWithFile extends AuthRequest {
-  file?: Express.Multer.File;
+  file?: any;
 }
 
 // Configure multer for memory storage
