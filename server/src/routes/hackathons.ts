@@ -50,7 +50,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
 
     // Transform to match expected format
     const hackathons = result.map((h: any) => ({
-      id: h.id,
+      id: h._id.toString(),
       name: h.name,
       description: h.description,
       teamSize: h.teamSize,
@@ -58,7 +58,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
       skillsNeeded: h.skillsNeeded,
       createdAt: h.createdAt,
       creator: h.creatorId ? {
-        id: h.creatorId.id,
+        id: h.creatorId._id?.toString() || h.creatorId,
         name: h.creatorId.name,
         avatar: h.creatorId.avatar,
       } : null,
@@ -105,7 +105,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
 
     // Transform to match expected format
     const result = {
-      id: hackathon.id,
+      id: hackathon._id.toString(),
       name: hackathon.name,
       description: hackathon.description,
       teamSize: hackathon.teamSize,
@@ -113,7 +113,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
       skillsNeeded: hackathon.skillsNeeded,
       createdAt: hackathon.createdAt,
       creator: hackathon.creatorId ? {
-        id: (hackathon.creatorId as any).id,
+        id: (hackathon.creatorId as any)._id?.toString() || (hackathon.creatorId as any).id,
         name: (hackathon.creatorId as any).name,
         avatar: (hackathon.creatorId as any).avatar,
         college: (hackathon.creatorId as any).college,
@@ -146,7 +146,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     // Auto-create Builder Space (workspace) for this hackathon
     const workspace = await TeamSpace.create({
       postType: 'hackathon',
-      postId: newHackathon.id,
+      postId: newHackathon._id.toString(),
       name: `${newHackathon.name} Workspace`,
       description: `Collaboration workspace for ${newHackathon.name}`,
     });
@@ -155,7 +155,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     await TeamMember.create({
       userId: req.user!.id,
       postType: 'hackathon',
-      postId: newHackathon.id,
+      postId: newHackathon._id.toString(),
       role: 'founder',
       joinedAt: new Date(),
     });
@@ -166,7 +166,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     res.status(201).json({
       message: 'Hackathon created successfully',
       hackathon: {
-        id: newHackathon.id,
+        id: newHackathon._id.toString(),
         name: newHackathon.name,
         description: newHackathon.description,
         teamSize: newHackathon.teamSize,
@@ -175,9 +175,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         createdAt: newHackathon.createdAt,
       },
       workspace: {
-        id: workspace.id,
+        id: workspace._id.toString(),
         postType: workspace.postType,
-        postId: workspace.postId,
+        postId: workspace.postId.toString(),
         name: workspace.name,
         description: workspace.description,
         createdAt: workspace.createdAt,

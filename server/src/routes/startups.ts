@@ -144,7 +144,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     // Auto-create Builder Space (workspace) for this startup
     const workspace = await TeamSpace.create({
       postType: 'startup',
-      postId: newStartup.id,
+      postId: newStartup._id.toString(),
       name: `${newStartup.name} Workspace`,
       description: `Collaboration workspace for ${newStartup.name}`,
     });
@@ -153,7 +153,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     await TeamMember.create({
       userId: req.user!.id,
       postType: 'startup',
-      postId: newStartup.id,
+      postId: newStartup._id.toString(),
       role: 'founder',
       joinedAt: new Date(),
     });
