@@ -26,7 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check if user is already authenticated
     const token = localStorage.getItem('kaivan_token');
     if (token) {
-      getCurrentUser();
+      // Don't show errors from initial auth check
+      getCurrentUser().catch(() => {
+        // Silently fail - user will just see login page
+      });
     } else {
       setIsLoading(false);
     }
@@ -38,8 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(response.user);
     } catch (error) {
       console.error('Failed to get current user:', error);
-      // Clear invalid token
+      // Clear invalid token - don't show error to user
       localStorage.removeItem('kaivan_token');
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
