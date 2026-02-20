@@ -65,9 +65,14 @@ app.use(cors({
     if (process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
-      // In production, only allow specific origin
-      const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
-      if (!origin || origin === allowedOrigin) {
+      // In production, allow specific origins
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        'https://codejam-three.vercel.app',
+        'https://codejam-4xmaovxml-aahantrikhas-projects.vercel.app'
+      ].filter(Boolean);
+      
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
