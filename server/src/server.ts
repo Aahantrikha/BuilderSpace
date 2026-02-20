@@ -18,6 +18,7 @@ import screeningChatRoutes from './routes/screeningChats.js';
 import builderSpaceRoutes from './routes/builderSpaces.js';
 import teamRoutes from './routes/teams.js';
 import statsRoutes from './routes/stats.js';
+import uploadRoutes from './routes/upload.js';
 
 // Import services
 import { messageBroadcastService } from './services/MessageBroadcastService.js';
@@ -205,6 +206,7 @@ app.use('/api/screening-chats', screeningChatRoutes);
 app.use('/api/builder-spaces', builderSpaceRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
