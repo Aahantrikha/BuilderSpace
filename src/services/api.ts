@@ -44,12 +44,23 @@ class ApiService {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
+        
+        // If unauthorized, clear token
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('kaivan_token');
+        }
+        
+        throw new Error(errorMessage);
       }
 
       return await response.json();
     } catch (error) {
       console.error('API request failed:', error);
+      // If it's a network error, provide a better message
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Unable to connect to server. Please check your internet connection.');
+      }
       throw error;
     }
   }

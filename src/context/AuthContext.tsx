@@ -27,8 +27,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem('kaivan_token');
     if (token) {
       // Don't show errors from initial auth check
-      getCurrentUser().catch(() => {
+      getCurrentUser().catch((error) => {
         // Silently fail - user will just see login page
+        console.log('Initial auth check failed:', error?.message || 'Unknown error');
+        // Clear any bad tokens
+        localStorage.removeItem('kaivan_token');
+        setUser(null);
       });
     } else {
       setIsLoading(false);
