@@ -6,6 +6,11 @@ import { User } from '../db/index.js';
 
 const router = Router();
 
+// Extend AuthRequest to include multer file
+interface AuthRequestWithFile extends AuthRequest {
+  file?: Express.Multer.File;
+}
+
 // Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -23,7 +28,7 @@ const upload = multer({
 });
 
 // Upload avatar
-router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: AuthRequest, res) => {
+router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: AuthRequestWithFile, res) => {
   try {
     if (!isSupabaseConfigured()) {
       return res.status(503).json({ 
