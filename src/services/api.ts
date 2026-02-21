@@ -149,6 +149,7 @@ class ApiService {
     return this.request<{
       message: string;
       startup: any;
+      workspace: any;
     }>('/startups', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -186,6 +187,7 @@ class ApiService {
     return this.request<{
       message: string;
       hackathon: any;
+      workspace: any;
     }>('/hackathons', {
       method: 'POST',
       body: JSON.stringify(data),

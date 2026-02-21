@@ -67,16 +67,21 @@ export function CreatePost() {
       setError(null);
 
       if (activeTab === 'startup') {
-        await apiService.createStartup({
+        const response = await apiService.createStartup({
           name: startupForm.name,
           description: startupForm.description,
           logo: startupForm.logo,
           stage: startupForm.stage,
           skillsNeeded: startupForm.skills,
         });
-        navigate('/startups');
+        // Navigate to the workspace that was automatically created
+        if (response.workspace?.id) {
+          navigate(`/workspaces/${response.workspace.id}`);
+        } else {
+          navigate('/startups');
+        }
       } else {
-        await apiService.createHackathon({
+        const response = await apiService.createHackathon({
           name: hackathonForm.name,
           description: hackathonForm.description,
           logo: hackathonForm.logo,
@@ -84,7 +89,12 @@ export function CreatePost() {
           deadline: hackathonForm.deadline!,
           skillsNeeded: hackathonForm.skills,
         });
-        navigate('/hackathons');
+        // Navigate to the workspace that was automatically created
+        if (response.workspace?.id) {
+          navigate(`/workspaces/${response.workspace.id}`);
+        } else {
+          navigate('/hackathons');
+        }
       }
     } catch (error: any) {
       setError(error.message || 'Failed to create post');
