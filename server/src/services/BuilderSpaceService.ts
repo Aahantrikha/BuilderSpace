@@ -154,11 +154,26 @@ export class BuilderSpaceService {
     postType: 'startup' | 'hackathon',
     postId: string
   ): Promise<boolean> {
+    console.log('[BuilderSpaceService] Validating team member access');
+    console.log('[BuilderSpaceService] userId:', userId, 'type:', typeof userId);
+    console.log('[BuilderSpaceService] postType:', postType);
+    console.log('[BuilderSpaceService] postId:', postId, 'type:', typeof postId);
+    
     const member = await TeamMember.findOne({
       userId,
       postType,
       postId
     });
+
+    console.log('[BuilderSpaceService] Member found:', member ? 'YES' : 'NO');
+    if (member) {
+      console.log('[BuilderSpaceService] Member details:', {
+        userId: member.userId.toString(),
+        postType: member.postType,
+        postId: member.postId.toString(),
+        role: member.role
+      });
+    }
 
     return !!member;
   }

@@ -92,6 +92,8 @@ export function WorkspaceDetail() {
   const loadWorkspaceData = async () => {
     try {
       setLoading(true);
+      console.log('[WorkspaceDetail] Loading workspace data for ID:', workspaceId);
+      
       const [workspaceRes, messagesRes, linksRes, tasksRes, membersRes] = await Promise.all([
         apiService.getWorkspace(workspaceId!),
         apiService.getWorkspaceMessages(workspaceId!),
@@ -99,6 +101,8 @@ export function WorkspaceDetail() {
         apiService.getWorkspaceTasks(workspaceId!),
         apiService.getWorkspaceMembers(workspaceId!),
       ]);
+      
+      console.log('[WorkspaceDetail] Workspace data loaded:', workspaceRes);
       setWorkspace(workspaceRes.space);
       setMessages(messagesRes.messages || []);
       setLinks(linksRes.links || []);
@@ -106,8 +110,9 @@ export function WorkspaceDetail() {
       setMembers(membersRes.members || []);
       setIsFounder(membersRes.isFounder || false);
     } catch (error: any) {
-      console.error('Failed to load workspace:', error);
-      console.error('Error message:', error.message);
+      console.error('[WorkspaceDetail] Failed to load workspace:', error);
+      console.error('[WorkspaceDetail] Error message:', error.message);
+      console.error('[WorkspaceDetail] Error response:', error.response);
       setWorkspace(null);
     } finally {
       setLoading(false);
