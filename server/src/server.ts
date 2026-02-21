@@ -245,17 +245,15 @@ const httpServer = createServer(app);
 // Initialize WebSocket through MessageBroadcastService
 messageBroadcastService.initialize(httpServer);
 
-// Start server only if not in Vercel serverless environment
-if (process.env.VERCEL !== '1') {
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Kaivan API server running on port ${PORT}`);
-    console.log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🌐 Network access: http://0.0.0.0:${PORT} (accessible from all network interfaces)`);
-    console.log(`🔓 CORS: Allowing all origins in development mode`);
-    console.log(`🔌 WebSocket server ready`);
-  });
-}
+// Start server
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Kaivan API server running on port ${PORT}`);
+  console.log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 Network access: http://0.0.0.0:${PORT} (accessible from all network interfaces)`);
+  console.log(`🔓 CORS: Allowing all origins in development mode`);
+  console.log(`🔌 WebSocket server ready`);
+});
 
 export default app;
