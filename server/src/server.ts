@@ -70,10 +70,12 @@ app.use(cors({
       const allowedOrigins = [
         process.env.FRONTEND_URL,
         'https://codejam-three.vercel.app',
-        'https://codejam-4xmaovxml-aahantrikhas-projects.vercel.app'
-      ].filter(Boolean);
+      ];
       
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow all Vercel preview deployments
+      if (!origin || 
+          allowedOrigins.includes(origin) || 
+          origin.includes('vercel.app')) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
