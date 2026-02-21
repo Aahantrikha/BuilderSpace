@@ -146,7 +146,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     // Auto-create Builder Space (workspace) for this hackathon
     const workspace = await TeamSpace.create({
       postType: 'hackathon',
-      postId: newHackathon._id.toString(),
+      postId: newHackathon._id,
       name: `${newHackathon.name} Workspace`,
       description: `Collaboration workspace for ${newHackathon.name}`,
     });
@@ -155,7 +155,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     await TeamMember.create({
       userId: req.user!.id,
       postType: 'hackathon',
-      postId: newHackathon._id.toString(),
+      postId: newHackathon._id,
       role: 'founder',
       joinedAt: new Date(),
     });
