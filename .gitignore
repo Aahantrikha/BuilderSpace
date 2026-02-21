@@ -127,3 +127,4 @@ server/*.sqlite
 
 # Batch files (Windows scripts)
 *.bat
+.vercel

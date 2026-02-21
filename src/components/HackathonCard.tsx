@@ -28,7 +28,7 @@ export function HackathonCard({ hackathon, index = 0 }: HackathonCardProps) {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <Avatar className="w-10 h-10 border border-border">
-                <AvatarImage src={hackathon.logo || `https://api.dicebear.com/7.x/shapes/svg?seed=${hackathon.name}`} alt={hackathon.name} />
+                <AvatarImage src={hackathon.logo || '/default-logo.svg'} alt={hackathon.name} />
                 <AvatarFallback className="bg-white/10 text-white">
                   <User className="w-5 h-5" />
                 </AvatarFallback>

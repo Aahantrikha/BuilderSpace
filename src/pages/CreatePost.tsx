@@ -28,7 +28,7 @@ export function CreatePost() {
   const [startupForm, setStartupForm] = useState({
     name: '',
     description: '',
-    logo: 'https://api.dicebear.com/7.x/shapes/svg?seed=startup',
+    logo: '/default-logo.svg',
     stage: 'Idea' as 'Idea' | 'Prototype' | 'Launched',
     skills: [] as string[],
   });
@@ -37,7 +37,7 @@ export function CreatePost() {
   const [hackathonForm, setHackathonForm] = useState({
     name: '',
     description: '',
-    logo: 'https://api.dicebear.com/7.x/shapes/svg?seed=hackathon',
+    logo: '/default-logo.svg',
     teamSize: 4,
     deadline: undefined as Date | undefined,
     skills: [] as string[],
@@ -197,11 +197,9 @@ export function CreatePost() {
                     <Input
                       value={startupForm.name}
                       onChange={(e) => {
-                        const name = e.target.value;
                         setStartupForm((prev) => ({ 
                           ...prev, 
-                          name,
-                          logo: `https://api.dicebear.com/7.x/shapes/svg?seed=${name || 'startup'}`
+                          name: e.target.value
                         }));
                       }}
                       placeholder="e.g., StudySync"
@@ -212,11 +210,11 @@ export function CreatePost() {
                   <div>
                     <Label className="text-white/70 mb-2 block">Logo</Label>
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white/20 flex-shrink-0">
-                        <img src={startupForm.logo} alt="Logo preview" className="w-full h-full" />
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white/20 flex-shrink-0 bg-white p-2">
+                        <img src={startupForm.logo} alt="Logo preview" className="w-full h-full object-contain" />
                       </div>
                       <p className="text-sm text-white/50">
-                        Logo is automatically generated based on your startup name
+                        Using default CodeJam logo
                       </p>
                     </div>
                   </div>
@@ -290,11 +288,9 @@ export function CreatePost() {
                     <Input
                       value={hackathonForm.name}
                       onChange={(e) => {
-                        const name = e.target.value;
                         setHackathonForm((prev) => ({ 
                           ...prev, 
-                          name,
-                          logo: `https://api.dicebear.com/7.x/shapes/svg?seed=${name || 'hackathon'}`
+                          name: e.target.value
                         }));
                       }}
                       placeholder="e.g., AI for Climate Change Hackathon"
@@ -305,11 +301,11 @@ export function CreatePost() {
                   <div>
                     <Label className="text-white/70 mb-2 block">Logo</Label>
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white/20 flex-shrink-0">
-                        <img src={hackathonForm.logo} alt="Logo preview" className="w-full h-full" />
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white/20 flex-shrink-0 bg-white p-2">
+                        <img src={hackathonForm.logo} alt="Logo preview" className="w-full h-full object-contain" />
                       </div>
                       <p className="text-sm text-white/50">
-                        Logo is automatically generated based on your hackathon name
+                        Using default CodeJam logo
                       </p>
                     </div>
                   </div>
