@@ -62,8 +62,12 @@ const authLimiter = rateLimit({
 // CORS configuration
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('[CORS] Request from origin:', origin);
+    console.log('[CORS] NODE_ENV:', process.env.NODE_ENV);
+    
     // Allow all origins in development
     if (process.env.NODE_ENV !== 'production') {
+      console.log('[CORS] Development mode - allowing all origins');
       callback(null, true);
     } else {
       // In production, allow specific origins
@@ -72,12 +76,16 @@ app.use(cors({
         'https://codejam-three.vercel.app',
       ];
       
+      console.log('[CORS] Allowed origins:', allowedOrigins);
+      
       // Allow all Vercel preview deployments
       if (!origin || 
           allowedOrigins.includes(origin) || 
           origin.includes('vercel.app')) {
+        console.log('[CORS] Origin allowed');
         callback(null, true);
       } else {
+        console.log('[CORS] Origin blocked');
         callback(new Error('Not allowed by CORS'));
       }
     }
@@ -85,6 +93,9 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Body parsing middleware
