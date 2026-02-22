@@ -127,4 +127,10 @@ server/*.sqlite
 
 # Batch files (Windows scripts)
 *.bat
-.vercel
+
+# Old deployment files (not needed for OCI)
+.vercel/
+.railway/
+render.yaml
+vercel.json
+.vercelignore
