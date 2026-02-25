@@ -1,305 +1,309 @@
-# CodeJam Deployment Guide - OCI + codejam.space
+# CodeJam - GCP Deployment Guide
 
-Complete guide to deploy your CodeJam application on Oracle Cloud Infrastructure with custom domain.
+Deploy your CodeJam application to Google Cloud Platform using Cloud Run.
 
 ---
 
-## 📋 What You'll Deploy
+## 🎯 What You'll Deploy
 
 ```
-https://codejam.space (Your Domain)
+https://your-domain.com
          ↓
 ┌─────────────────────────────────┐
-│  Oracle Cloud (Free Tier)       │
+│  Google Cloud Platform          │
 │                                  │
-│  Frontend VM    Backend VM      │
-│  (Nginx)        (Node.js)       │
+│  Cloud Run      Cloud Run       │
+│  (Frontend)     (Backend)       │
 └─────────────────────────────────┘
          ↓
    MongoDB Atlas (Free)
 ```
 
-**Total Cost**: ~$1.25/month (just the domain)
+**Cost**: ~$5-10/month (Cloud Run free tier covers most usage)
 
 ---
 
-## 🚀 Quick Start (1 Hour Total)
+## 📋 Prerequisites
 
-### Part 1: Deploy to OCI (30 minutes)
+1. Google Cloud account with billing enabled
+2. MongoDB Atlas account (free tier)
+3. Domain name (optional)
+4. Google OAuth credentials
+5. gcloud CLI installed
 
-#### Step 1: Create OCI Account
-1. Go to https://cloud.oracle.com/
-2. Sign up for free tier
-3. Complete verification
+---
 
-#### Step 2: Setup MongoDB Atlas
+## 🚀 Deployment Steps
+
+### Step 1: Setup MongoDB Atlas
+
 1. Go to https://cloud.mongodb.com/
 2. Create free M0 cluster
-3. Add database user: `codejam_user` / `your-password`
-4. Network Access: Add `0.0.0.0/0`
+3. Database Access → Add user: `codejam_user` / `your-password`
+4. Network Access → Add IP: `0.0.0.0/0` (allow all)
 5. Copy connection string:
    ```
    mongodb+srv://codejam_user:PASSWORD@cluster.mongodb.net/codejam?retryWrites=true&w=majority
    ```
 
-#### Step 3: Create VCN (Virtual Network)
-1. OCI Console → Networking → Virtual Cloud Networks
-2. Click "Create VCN with Internet Connectivity"
-3. Name: `codejam-vcn`
-4. Use defaults, click Create
+### Step 2: Setup Google Cloud Project
 
-#### Step 4: Configure Security (Firewall)
-1. VCN → Security Lists → Default Security List
-2. Add Ingress Rules:
-   ```
-   Source: 0.0.0.0/0, Protocol: TCP, Port: 22 (SSH)
-   Source: 0.0.0.0/0, Protocol: TCP, Port: 80 (HTTP)
-   Source: 0.0.0.0/0, Protocol: TCP, Port: 443 (HTTPS)
-   Source: 0.0.0.0/0, Protocol: TCP, Port: 3001 (Backend)
-   ```
-
-#### Step 5: Create Backend VM
-1. Compute → Instances → Create Instance
-2. Name: `codejam-backend`
-3. Image: Ubuntu 22.04
-4. Shape: VM.Standard.E2.1.Micro (Free tier)
-5. VCN: codejam-vcn, Subnet: Public
-6. Assign Public IP: Yes
-7. Add SSH key (generate or upload)
-8. Create
-9. **Note Backend IP**: `xxx.xxx.xxx.xxx`
-
-#### Step 6: Create Frontend VM
-1. Repeat Step 5
-2. Name: `codejam-frontend`
-3. **Note Frontend IP**: `yyy.yyy.yyy.yyy`
-
-#### Step 7: Deploy Backend
 ```bash
-# SSH into backend VM
-ssh -i your-key.pem ubuntu@xxx.xxx.xxx.xxx
+# Install gcloud CLI (if not installed)
+# Visit: https://cloud.google.com/sdk/docs/install
 
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs git
-sudo npm install -g pm2
+# Login to Google Cloud
+gcloud auth login
 
-# Clone repository
-cd /home/ubuntu
-git clone https://github.com/Aahantrikha/BuilderSpace.git
-cd BuilderSpace/app/server
+# Create new project
+gcloud projects create codejam-prod --name="CodeJam Production"
 
-# Install dependencies
-npm install
-npm run build
+# Set project
+gcloud config set project codejam-prod
 
-# Create .env file
-nano .env
+# Enable required APIs
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable secretmanager.googleapis.com
 ```
 
-**Add to .env**:
-```env
-MONGODB_URI="mongodb+srv://codejam_user:PASSWORD@cluster.mongodb.net/codejam?retryWrites=true&w=majority"
-JWT_SECRET="your-super-secret-jwt-key-at-least-32-characters-long"
-JWT_EXPIRES_IN="7d"
-GOOGLE_CLIENT_ID="826418995384-i8skr4dciv9n1fa8l0bpg8jcl3hjohjm.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="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"
-PORT=3001
-NODE_ENV="production"
-FRONTEND_URL="http://yyy.yyy.yyy.yyy"
-SUPABASE_URL="https://jbtpedvggpbxltjftsbr.supabase.co"
-SUPABASE_SERVICE_KEY="your-supabase-service-key"
-```
+### Step 3: Setup Secrets
 
-**Start backend**:
 ```bash
-# Start with PM2
-pm2 start dist/server.js --name codejam-backend
-pm2 save
-pm2 startup
-# Run the command it outputs
-
-# Configure firewall
-sudo ufw allow 22/tcp
-sudo ufw allow 3001/tcp
-sudo ufw enable
-
-# Test
-curl http://localhost:3001/health
+# Create secrets for sensitive data
+echo -n "your-mongodb-uri" | gcloud secrets create MONGODB_URI --data-file=-
+echo -n "your-jwt-secret-min-32-chars" | gcloud secrets create JWT_SECRET --data-file=-
+echo -n "your-google-client-secret" | gcloud secrets create GOOGLE_CLIENT_SECRET --data-file=-
+echo -n "your-supabase-service-key" | gcloud secrets create SUPABASE_SERVICE_KEY --data-file=-
 ```
 
-#### Step 8: Deploy Frontend
+### Step 4: Deploy Backend
+
 ```bash
-# SSH into frontend VM
-ssh -i your-key.pem ubuntu@yyy.yyy.yyy.yyy
+cd app/server
 
-# Install Nginx and Node.js
-sudo apt update
-sudo apt install -y nginx nodejs npm git
+# Build and deploy to Cloud Run
+gcloud run deploy codejam-backend \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080 \
+  --memory 512Mi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 10 \
+  --set-env-vars "NODE_ENV=production,PORT=8080,JWT_EXPIRES_IN=7d" \
+  --set-env-vars "GOOGLE_CLIENT_ID=826418995384-i8skr4dciv9n1fa8l0bpg8jcl3hjohjm.apps.googleusercontent.com" \
+  --set-env-vars "SUPABASE_URL=https://jbtpedvggpbxltjftsbr.supabase.co" \
+  --set-secrets "MONGODB_URI=MONGODB_URI:latest,JWT_SECRET=JWT_SECRET:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,SUPABASE_SERVICE_KEY=SUPABASE_SERVICE_KEY:latest"
 
-# Clone repository
-cd /home/ubuntu
-git clone https://github.com/Aahantrikha/BuilderSpace.git
-cd BuilderSpace/app
-
-# Create .env
-nano .env
+# Note the backend URL (e.g., https://codejam-backend-xxx-uc.a.run.app)
 ```
 
-**Add to .env**:
-```env
-VITE_API_URL=http://xxx.xxx.xxx.xxx:3001/api
+### Step 5: Update Backend Environment
+
+```bash
+# Get backend URL
+BACKEND_URL=$(gcloud run services describe codejam-backend --region us-central1 --format 'value(status.url)')
+
+echo "Backend URL: $BACKEND_URL"
+```
+
+### Step 6: Deploy Frontend
+
+```bash
+cd ../  # Back to app folder
+
+# Update .env for build
+cat > .env << EOF
+VITE_API_URL=${BACKEND_URL}/api
 VITE_GOOGLE_CLIENT_ID=826418995384-i8skr4dciv9n1fa8l0bpg8jcl3hjohjm.apps.googleusercontent.com
+EOF
+
+# Build and deploy
+gcloud run deploy codejam-frontend \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080 \
+  --memory 256Mi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 5
+
+# Note the frontend URL (e.g., https://codejam-frontend-xxx-uc.a.run.app)
 ```
 
-**Build and configure**:
+### Step 7: Update Backend FRONTEND_URL
+
 ```bash
-# Build
-npm install
-npm run build
+# Get frontend URL
+FRONTEND_URL=$(gcloud run services describe codejam-frontend --region us-central1 --format 'value(status.url)')
 
-# Configure Nginx
-sudo nano /etc/nginx/sites-available/codejam
+# Update backend with frontend URL
+gcloud run services update codejam-backend \
+  --region us-central1 \
+  --set-env-vars "FRONTEND_URL=${FRONTEND_URL}"
 ```
 
-**Add to Nginx config**:
-```nginx
-server {
-    listen 80;
-    server_name _;
-    root /home/ubuntu/BuilderSpace/app/dist;
-    index index.html;
+### Step 8: Update Google OAuth
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://xxx.xxx.xxx.xxx:3001/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-**Enable and start**:
-```bash
-sudo ln -s /etc/nginx/sites-available/codejam /etc/nginx/sites-enabled/
-sudo rm /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl restart nginx
-sudo systemctl enable nginx
-
-# Configure firewall
-sudo ufw allow 'Nginx Full'
-sudo ufw allow 22/tcp
-sudo ufw enable
-```
-
-**Test**: Open `http://yyy.yyy.yyy.yyy` in browser
-
----
-
-### Part 2: Add Custom Domain (30 minutes)
-
-#### Step 1: Configure DNS
-1. Login to your domain registrar (where you bought codejam.space)
-2. Go to DNS Management
-3. Add A Records:
-   ```
-   Type    Host    Value               TTL
-   A       @       yyy.yyy.yyy.yyy    3600
-   A       www     yyy.yyy.yyy.yyy    3600
-   ```
-4. Save and wait 5-30 minutes for DNS propagation
-
-**Test DNS**:
-```bash
-nslookup codejam.space
-```
-
-#### Step 2: Update Nginx for Domain
-```bash
-# SSH into frontend VM
-ssh -i your-key.pem ubuntu@yyy.yyy.yyy.yyy
-
-# Edit Nginx config
-sudo nano /etc/nginx/sites-available/codejam
-```
-
-**Change `server_name` line to**:
-```nginx
-server_name codejam.space www.codejam.space;
-```
-
-**Reload**:
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-**Test**: Open `http://codejam.space` in browser
-
-#### Step 3: Install SSL Certificate (Free)
-```bash
-# Install Certbot
-sudo apt install -y certbot python3-certbot-nginx
-
-# Get SSL certificate
-sudo certbot --nginx -d codejam.space -d www.codejam.space
-
-# Follow prompts:
-# - Enter email
-# - Agree to terms (Y)
-# - Redirect HTTP to HTTPS (2)
-```
-
-**Test**: Open `https://codejam.space` - should see 🔒 padlock!
-
-#### Step 4: Update Backend Environment
-```bash
-# SSH into backend VM
-ssh -i your-key.pem ubuntu@xxx.xxx.xxx.xxx
-
-# Edit .env
-nano /home/ubuntu/BuilderSpace/app/server/.env
-```
-
-**Change FRONTEND_URL to**:
-```env
-FRONTEND_URL="https://codejam.space"
-```
-
-**Restart**:
-```bash
-pm2 restart codejam-backend
-```
-
-#### Step 5: Update Google OAuth
 1. Go to https://console.cloud.google.com
 2. APIs & Services → Credentials
 3. Click your OAuth 2.0 Client ID
 4. Add to "Authorized JavaScript origins":
    ```
-   https://codejam.space
-   https://www.codejam.space
+   https://codejam-frontend-xxx-uc.a.run.app
    ```
 5. Add to "Authorized redirect URIs":
    ```
-   https://codejam.space
-   https://codejam.space/auth
+   https://codejam-frontend-xxx-uc.a.run.app/auth
    ```
 6. Save
 
 ---
 
+## 🌐 Custom Domain (Optional)
+
+### Setup Custom Domain
+
+```bash
+# Map domain to frontend
+gcloud run domain-mappings create \
+  --service codejam-frontend \
+  --domain codejam.space \
+  --region us-central1
+
+# Map subdomain to backend
+gcloud run domain-mappings create \
+  --service codejam-backend \
+  --domain api.codejam.space \
+  --region us-central1
+
+# Follow DNS instructions shown in output
+```
+
+### Update DNS Records
+
+Add these records to your domain registrar:
+
+```
+Type    Host    Value (from gcloud output)
+CNAME   @       ghs.googlehosted.com
+CNAME   api     ghs.googlehosted.com
+```
+
+### Update Environment Variables
+
+```bash
+# Update backend
+gcloud run services update codejam-backend \
+  --region us-central1 \
+  --set-env-vars "FRONTEND_URL=https://codejam.space"
+
+# Rebuild frontend with new API URL
+cd app
+cat > .env << EOF
+VITE_API_URL=https://api.codejam.space/api
+VITE_GOOGLE_CLIENT_ID=826418995384-i8skr4dciv9n1fa8l0bpg8jcl3hjohjm.apps.googleusercontent.com
+EOF
+
+# Redeploy frontend
+gcloud run deploy codejam-frontend \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+---
+
+## 🔧 Management Commands
+
+### View Logs
+
+```bash
+# Backend logs
+gcloud run logs read codejam-backend --region us-central1 --limit 50
+
+# Frontend logs
+gcloud run logs read codejam-frontend --region us-central1 --limit 50
+
+# Stream logs
+gcloud run logs tail codejam-backend --region us-central1
+```
+
+### Update Backend
+
+```bash
+cd app/server
+
+# Redeploy
+gcloud run deploy codejam-backend \
+  --source . \
+  --region us-central1
+```
+
+### Update Frontend
+
+```bash
+cd app
+
+# Redeploy
+gcloud run deploy codejam-frontend \
+  --source . \
+  --region us-central1
+```
+
+### Update Secrets
+
+```bash
+# Update MongoDB URI
+echo -n "new-mongodb-uri" | gcloud secrets versions add MONGODB_URI --data-file=-
+
+# Restart backend to use new secret
+gcloud run services update codejam-backend --region us-central1
+```
+
+### Scale Services
+
+```bash
+# Increase backend capacity
+gcloud run services update codejam-backend \
+  --region us-central1 \
+  --max-instances 20 \
+  --memory 1Gi \
+  --cpu 2
+
+# Set minimum instances (always warm)
+gcloud run services update codejam-backend \
+  --region us-central1 \
+  --min-instances 1
+```
+
+---
+
+## 💰 Cost Optimization
+
+### Free Tier Limits
+- 2 million requests/month
+- 360,000 GB-seconds/month
+- 180,000 vCPU-seconds/month
+
+### Tips
+1. Use `--min-instances 0` for development (cold starts OK)
+2. Use `--min-instances 1` for production (no cold starts)
+3. Monitor usage in Cloud Console
+4. Set budget alerts
+
+---
+
 ## ✅ Testing Checklist
 
-- [ ] `https://codejam.space` loads with 🔒 padlock
-- [ ] `http://codejam.space` redirects to HTTPS
+- [ ] Backend health check: `curl https://your-backend-url/health`
+- [ ] Frontend loads: `https://your-frontend-url`
 - [ ] Sign up works
 - [ ] Login works
 - [ ] Google OAuth works
@@ -307,52 +311,7 @@ pm2 restart codejam-backend
 - [ ] Create hackathon works
 - [ ] Workspace loads
 - [ ] Real-time chat works
-- [ ] Tasks work
-- [ ] Links work
-
----
-
-## 🔧 Common Commands
-
-### Backend Management
-```bash
-# SSH
-ssh -i key.pem ubuntu@xxx.xxx.xxx.xxx
-
-# Check status
-pm2 status
-pm2 logs codejam-backend
-
-# Restart
-pm2 restart codejam-backend
-
-# Update code
-cd /home/ubuntu/BuilderSpace/app/server
-git pull
-npm install
-npm run build
-pm2 restart codejam-backend
-```
-
-### Frontend Management
-```bash
-# SSH
-ssh -i key.pem ubuntu@yyy.yyy.yyy.yyy
-
-# Check Nginx
-sudo systemctl status nginx
-sudo tail -f /var/log/nginx/error.log
-
-# Restart
-sudo systemctl restart nginx
-
-# Update code
-cd /home/ubuntu/BuilderSpace/app
-git pull
-npm install
-npm run build
-sudo systemctl restart nginx
-```
+- [ ] File upload works
 
 ---
 
@@ -360,72 +319,65 @@ sudo systemctl restart nginx
 
 ### Backend not starting
 ```bash
-pm2 logs codejam-backend
-# Check MongoDB connection string
-# Verify .env file exists
+# Check logs
+gcloud run logs read codejam-backend --region us-central1 --limit 100
+
+# Common issues:
+# - MongoDB connection string incorrect
+# - JWT_SECRET not set
+# - Port not set to 8080
 ```
 
 ### Frontend shows blank page
 ```bash
-cd /home/ubuntu/BuilderSpace/app
+# Check if API URL is correct
+# Rebuild with correct VITE_API_URL
+cd app
+cat .env
 npm run build
-sudo systemctl restart nginx
-```
-
-### Domain not loading
-```bash
-nslookup codejam.space
-# Wait for DNS propagation (up to 48 hours)
-```
-
-### SSL certificate fails
-```bash
-# Ensure DNS is propagated first
-# Ensure ports 80 and 443 are open
-sudo ufw status
-sudo certbot certificates
+gcloud run deploy codejam-frontend --source . --region us-central1
 ```
 
 ### CORS errors
 ```bash
-# Verify FRONTEND_URL in backend .env
-# Restart backend
-pm2 restart codejam-backend
+# Ensure FRONTEND_URL is set correctly in backend
+gcloud run services describe codejam-backend --region us-central1 | grep FRONTEND_URL
+
+# Update if needed
+gcloud run services update codejam-backend \
+  --region us-central1 \
+  --set-env-vars "FRONTEND_URL=https://your-frontend-url"
 ```
+
+### WebSocket not working
+Cloud Run doesn't support WebSocket connections. Options:
+1. Deploy backend to GCE (Compute Engine) VM
+2. Use Firebase Realtime Database for real-time features
+3. Use polling instead of WebSocket
 
 ---
 
 ## 📊 Your Configuration
 
-**Domain**: codejam.space
-**Frontend IP**: yyy.yyy.yyy.yyy
-**Backend IP**: xxx.xxx.xxx.xxx
-**Frontend URL**: https://codejam.space
-**API URL**: http://xxx.xxx.xxx.xxx:3001/api
+**Project ID**: codejam-prod
+**Region**: us-central1
+**Backend**: https://codejam-backend-xxx-uc.a.run.app
+**Frontend**: https://codejam-frontend-xxx-uc.a.run.app
 **Database**: MongoDB Atlas (cluster0.lbgovtk.mongodb.net)
-
----
-
-## 💰 Monthly Cost
-
-- OCI VMs (2x): $0 (free tier)
-- MongoDB Atlas: $0 (free tier)
-- Supabase: $0 (free tier)
-- SSL Certificate: $0 (Let's Encrypt)
-- Domain: ~$1.25/month
-
-**Total: ~$1.25/month**
 
 ---
 
 ## 🎉 Success!
 
-Your CodeJam application is now live at **https://codejam.space**!
+Your CodeJam application is now live on Google Cloud Platform!
 
-Share it with your users and start building amazing teams! 🚀
+**Next Steps**:
+1. Set up monitoring and alerts
+2. Configure Cloud CDN for better performance
+3. Set up CI/CD with Cloud Build
+4. Enable Cloud Armor for DDoS protection
 
 ---
 
 **Last Updated**: February 2026
-**Platform**: Oracle Cloud Infrastructure
-**Domain**: codejam.space
+**Platform**: Google Cloud Platform (Cloud Run)

@@ -141,7 +141,9 @@ Visit http://localhost:5173 to see the app!
 
 Deploy to Google Cloud Platform (GCP) using Cloud Run.
 
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete step-by-step instructions.
+**Quick Start**: See **[GCP_QUICKSTART.md](GCP_QUICKSTART.md)** for 30-minute deployment guide.
+
+**Full Guide**: See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete step-by-step instructions.
 
 **What you'll get**:
 - Frontend on Cloud Run (serverless)
@@ -169,7 +171,8 @@ npm run test:coverage
 
 ## 📚 Documentation
 
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide (OCI + custom domain)
+- **[GCP_QUICKSTART.md](GCP_QUICKSTART.md)** - 30-minute deployment guide
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide (GCP + custom domain)
 - **README.md** - This file (project overview and quick start)
 
 ## 🔐 Security Features
