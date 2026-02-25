@@ -139,16 +139,16 @@ Visit http://localhost:5173 to see the app!
 
 ## 📦 Deployment
 
-Deploy to Oracle Cloud Infrastructure (OCI) with custom domain support.
+Deploy to Google Cloud Platform (GCP) using Cloud Run.
 
 See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete step-by-step instructions.
 
 **What you'll get**:
-- Frontend hosted on OCI with Nginx
-- Backend hosted on OCI with PM2
+- Frontend on Cloud Run (serverless)
+- Backend on Cloud Run (serverless)
 - MongoDB Atlas (free tier)
-- Custom domain with SSL (codejam.space)
-- Total cost: ~$1.25/month (just the domain)
+- Custom domain with SSL (optional)
+- Total cost: ~$5-10/month (free tier covers most usage)
 
 ## 🧪 Testing
 
@@ -249,7 +249,7 @@ This project is licensed under the MIT License.
 - Built with React, Node.js, and MongoDB
 - UI components from shadcn/ui
 - Icons from Lucide React
-- Deployed on Render and Vercel
+- Deployed on Google Cloud Platform
 
 ---
 
